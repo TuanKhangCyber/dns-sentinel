@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,11 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'plan_id' => fn () => Plan::query()->where('code', 'plus')->value('id'),
+            'role' => 'user',
+            'status' => 'active',
+            'membership_status' => 'active',
+            'membership_started_at' => now(),
         ];
     }
 
@@ -41,5 +47,20 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    public function free(): static
+    {
+        return $this->state(fn () => ['plan_id' => Plan::query()->where('code', 'free')->value('id')]);
+    }
+
+    public function admin(): static
+    {
+        return $this->state(fn () => ['role' => 'admin']);
+    }
+
+    public function suspended(): static
+    {
+        return $this->state(fn () => ['status' => 'suspended']);
     }
 }

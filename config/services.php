@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'dns' => [
+        'rdap_url' => env('DNS_RDAP_URL', 'https://rdap.org/domain/'),
+        'geo_url' => env('DNS_GEO_URL', 'https://ipwho.is/'),
+        'public_ip_url' => env('DNS_PUBLIC_IP_URL', 'https://api.ipify.org'),
+        'cache_ttl_seconds' => (int) env('DNS_CACHE_TTL_SECONDS', 300),
+        'http_timeout_seconds' => (int) env('DNS_HTTP_TIMEOUT_SECONDS', 5),
+        'response_max_bytes' => (int) env('DNS_HTTP_RESPONSE_MAX_BYTES', 1024 * 1024),
+        'traceroute_enabled' => filter_var(env('DNS_TRACEROUTE_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'traceroute_binary' => env('DNS_TRACEROUTE_BINARY', PHP_OS_FAMILY === 'Windows' ? 'C:\\Windows\\System32\\TRACERT.EXE' : 'traceroute'),
+        'traceroute_timeout_seconds' => (int) env('DNS_TRACEROUTE_TIMEOUT_SECONDS', 35),
+        'traceroute_max_output_bytes' => (int) env('DNS_TRACEROUTE_MAX_OUTPUT_BYTES', 65536),
+    ],
+
 ];

@@ -1,0 +1,31 @@
+<?php
+
+return [
+    'primary_navigation' => 'Điều hướng chính', 'membership' => 'Gói thành viên', 'credits' => 'Credits', 'about' => 'Giới thiệu',
+    'legal_use' => 'Chỉ sử dụng khi được cấp phép', 'legal_use_text' => 'Chỉ dùng recon và scanner trên hệ thống bạn sở hữu hoặc được cho phép đánh giá rõ ràng.',
+    'acknowledgements' => 'Thư viện và công cụ', 'faq_intro' => 'Giải đáp về gói thành viên, quét bảo mật, quyền riêng tư và chống bot.',
+    'search_faq' => 'Tìm câu hỏi', 'category' => 'Danh mục', 'search' => 'Tìm kiếm', 'no_items' => 'Không có dữ liệu.',
+    'membership_intro' => 'Quyền tính năng và hạn mức credits được điều khiển bởi gói hiện tại.', 'current_plan' => 'Gói hiện tại',
+    'monthly_credits' => 'Credits hàng tháng', 'history_days' => 'Số ngày lưu lịch sử', 'request_upgrade' => 'Yêu cầu nâng cấp',
+    'upgrade_request_notice' => 'Chưa có cổng thanh toán. Hãy liên hệ quản trị viên để yêu cầu gói Plus.',
+    'feature_status' => 'Quyền sử dụng tính năng', 'available' => 'Khả dụng', 'balance' => 'Số dư',
+    'credit_policy_short' => 'Mọi sử dụng được ghi vào ledger. Scan queue thất bại được hoàn credits tự động.',
+    'time' => 'Thời gian', 'amount' => 'Số lượng', 'type' => 'Loại', 'feature' => 'Tính năng', 'description' => 'Mô tả',
+    'users' => 'Người dùng', 'settings' => 'Cấu hình', 'save' => 'Lưu', 'saved' => 'Đã lưu thay đổi.', 'adjust_credits' => 'Điều chỉnh credits', 'reason' => 'Lý do',
+    'confirm_delete' => 'Xóa mục này? Thao tác không thể hoàn tác.', 'confirm_credit_adjustment' => 'Áp dụng điều chỉnh credit và ghi vào nhật ký kiểm toán?',
+    'add_feature_metadata' => 'Thêm metadata tính năng', 'recaptcha_notice' => 'Biểu mẫu dùng Google reCAPTCHA để giảm hành vi tự động.',
+    'recaptcha_configured' => 'Site key và secret key đã được cấu hình trong môi trường.', 'recaptcha_not_configured' => 'reCAPTCHA đang bật nhưng key môi trường chưa đầy đủ.',
+    'secret_env_only' => 'Site/secret key và credential kỹ thuật chỉ nằm trong .env và không hiển thị tại đây.',
+    'credit_refund_cancelled' => 'Hoàn credits tự động: scan đã hủy.', 'credit_refund_dispatch' => 'Hoàn credits tự động: dispatch queue thất bại.',
+    'credit_refund_failed' => 'Hoàn credits tự động: scanner job thất bại.',
+    'errors' => [
+        'feature_unregistered' => 'Tính năng chưa có implementation được đăng ký trong ứng dụng.', 'feature_disabled' => 'Tính năng đang tạm tắt.',
+        'upgrade_required' => 'Cần nâng cấp lên Plus.', 'insufficient_credits' => 'Không đủ credits cho thao tác này.',
+        'service_unavailable' => 'Dịch vụ kỹ thuật chưa được cấu hình.', 'account_suspended' => 'Tài khoản đang bị tạm khóa.',
+        'last_admin' => 'Không thể hạ quyền hoặc khóa quản trị viên hoạt động cuối cùng.', 'plan_in_use' => 'Không thể tắt gói đang được người dùng sử dụng.',
+        'default_plan_required' => 'Không thể tắt gói Free/mặc định dùng cho chính sách fallback.',
+        'recaptcha_keys_missing' => 'Hãy cấu hình site key và secret key reCAPTCHA trong .env trước khi bật.',
+        'recaptcha_required' => 'Cần xác minh chống bot.', 'recaptcha_failed' => 'Xác minh chống bot thất bại.',
+        'recaptcha_unavailable' => 'Xác minh chống bot tạm thời không khả dụng.',
+    ],
+];

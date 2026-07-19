@@ -1,0 +1,31 @@
+<?php
+
+return [
+    'primary_navigation' => 'Primary navigation', 'membership' => 'Membership', 'credits' => 'Credits', 'about' => 'About',
+    'legal_use' => 'Authorized use only', 'legal_use_text' => 'Use recon and scanner features only on systems you own or are explicitly authorized to assess.',
+    'acknowledgements' => 'Acknowledgements', 'faq_intro' => 'Answers about membership, scanning, privacy and anti-bot protection.',
+    'search_faq' => 'Search questions', 'category' => 'Category', 'search' => 'Search', 'no_items' => 'No items found.',
+    'membership_intro' => 'Feature access and credit limits are controlled by your current plan.', 'current_plan' => 'Current plan',
+    'monthly_credits' => 'Monthly credits', 'history_days' => 'History retention days', 'request_upgrade' => 'Request upgrade',
+    'upgrade_request_notice' => 'No payment gateway is configured. Contact an administrator to request Plus access.',
+    'feature_status' => 'Your feature access', 'available' => 'Available', 'balance' => 'Balance',
+    'credit_policy_short' => 'Usage is recorded in an immutable ledger. Failed queued scans are refunded automatically.',
+    'time' => 'Time', 'amount' => 'Amount', 'type' => 'Type', 'feature' => 'Feature', 'description' => 'Description',
+    'users' => 'Users', 'settings' => 'Settings', 'save' => 'Save', 'saved' => 'Changes saved.', 'adjust_credits' => 'Adjust credits', 'reason' => 'Reason',
+    'confirm_delete' => 'Delete this item? This action cannot be undone.', 'confirm_credit_adjustment' => 'Apply this credit adjustment and record it in the audit log?',
+    'add_feature_metadata' => 'Add feature metadata', 'recaptcha_notice' => 'This form is protected by Google reCAPTCHA to reduce automated abuse.',
+    'recaptcha_configured' => 'Site and secret keys are configured in the environment.', 'recaptcha_not_configured' => 'reCAPTCHA is enabled but environment keys are incomplete.',
+    'secret_env_only' => 'Site/secret keys and technical credentials remain in .env and are never displayed here.',
+    'credit_refund_cancelled' => 'Automatic refund: scan cancelled.', 'credit_refund_dispatch' => 'Automatic refund: queue dispatch failed.',
+    'credit_refund_failed' => 'Automatic refund: scanner job failed.',
+    'errors' => [
+        'feature_unregistered' => 'This feature has no registered application implementation.', 'feature_disabled' => 'This feature is temporarily disabled.',
+        'upgrade_required' => 'Plus membership is required.', 'insufficient_credits' => 'There are not enough credits for this action.',
+        'service_unavailable' => 'The technical service is not configured.', 'account_suspended' => 'This account is suspended.',
+        'last_admin' => 'The final active administrator cannot be demoted or suspended.', 'plan_in_use' => 'A plan assigned to users cannot be disabled.',
+        'default_plan_required' => 'The Free/default fallback plan cannot be disabled.',
+        'recaptcha_keys_missing' => 'Configure the reCAPTCHA site and secret keys in .env before enabling it.',
+        'recaptcha_required' => 'Anti-bot verification is required.', 'recaptcha_failed' => 'Anti-bot verification failed.',
+        'recaptcha_unavailable' => 'Anti-bot verification is temporarily unavailable.',
+    ],
+];
