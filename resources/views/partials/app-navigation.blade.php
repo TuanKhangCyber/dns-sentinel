@@ -32,7 +32,7 @@
             @endauth
             <a href="{{ route('about') }}" @if(request()->routeIs('about')) aria-current="page" @endif>{{ __('platform.about') }}</a>
             <a href="{{ route('faq') }}" @if(request()->routeIs('faq')) aria-current="page" @endif>FAQ</a>
-            @if($currentUser?->isAdmin())<a href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.*')) aria-current="page" @endif>Admin</a>@endif
+            @if($currentUser?->isAdmin())<a href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.*')) aria-current="page" @endif>{{ __('platform.admin') }}</a>@endif
         </nav>
         <div class="app-account">
             @auth

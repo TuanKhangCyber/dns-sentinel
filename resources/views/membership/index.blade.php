@@ -2,7 +2,7 @@
 @section('title', __('platform.membership'))
 @section('content')
 <section class="platform-hero">
-    <p class="eyebrow">MEMBERSHIP &amp; ACCESS</p>
+    <p class="eyebrow">{{ strtoupper(__('platform.membership_access')) }}</p>
     <h1>{{ __('platform.membership') }}</h1>
     <p>{{ __('platform.membership_intro') }}</p>
     <div class="hero-status-row">
@@ -25,7 +25,7 @@
 </div>
 
 <section class="platform-card">
-    <header class="card-heading"><div><p class="eyebrow">FEATURE FLAGS</p><h2>{{ __('platform.feature_status') }}</h2></div></header>
+    <header class="card-heading"><div><p class="eyebrow">{{ strtoupper(__('platform.feature_flags')) }}</p><h2>{{ __('platform.feature_status') }}</h2></div></header>
     <div class="feature-status-grid">
         @foreach($statuses as $code => $status)
             <article class="feature-state @unless($status['allowed']) locked @endunless" data-feature-code="{{ $code }}" @unless($status['allowed']) aria-disabled="true" @endunless>

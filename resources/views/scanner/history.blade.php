@@ -5,10 +5,10 @@
 <section class="scanner-hero compact"><h1>{{ __('scanner.history') }}</h1></section>
 <section class="scanner-card">
     <form class="history-filters" method="GET">
-        <input name="target" value="{{ request('target') }}" placeholder="{{ __('scanner.target') }}">
-        <select name="profile"><option value="">{{ __('scanner.all_profiles') }}</option>@foreach($profiles as $profile)<option value="{{ $profile['key'] }}" @selected(request('profile') === $profile['key'])>{{ $profile['name'] }}</option>@endforeach</select>
-        <input type="date" name="date_from" value="{{ request('date_from') }}"><input type="date" name="date_to" value="{{ request('date_to') }}">
-        <select name="severity"><option value="">{{ __('scanner.all_severities') }}</option>@foreach(['critical','high','medium','low','informational'] as $severity)<option value="{{ $severity }}" @selected(request('severity') === $severity)>{{ ucfirst($severity) }}</option>@endforeach</select>
+        <input name="target" value="{{ request('target') }}" placeholder="{{ __('scanner.target') }}" aria-label="{{ __('scanner.target') }}">
+        <select name="profile" aria-label="{{ __('scanner.all_profiles') }}"><option value="">{{ __('scanner.all_profiles') }}</option>@foreach($profiles as $profile)<option value="{{ $profile['key'] }}" @selected(request('profile') === $profile['key'])>{{ $profile['name'] }}</option>@endforeach</select>
+        <input type="date" name="date_from" value="{{ request('date_from') }}" aria-label="{{ __('scanner.date_from') }}"><input type="date" name="date_to" value="{{ request('date_to') }}" aria-label="{{ __('scanner.date_to') }}">
+        <select name="severity" aria-label="{{ __('scanner.all_severities') }}"><option value="">{{ __('scanner.all_severities') }}</option>@foreach(['critical','high','medium','low','informational'] as $severity)<option value="{{ $severity }}" @selected(request('severity') === $severity)>{{ __('scanner.'.$severity) }}</option>@endforeach</select>
         <button type="submit">{{ __('scanner.filter') }}</button>
     </form>
     <form id="compareScansForm" action="{{ route('scanner.compare') }}" method="GET">

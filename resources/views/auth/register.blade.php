@@ -23,7 +23,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('register') }}" class="auth-form" @if($recaptcha['enabled']) data-recaptcha-form data-recaptcha-action="register" data-recaptcha-site-key="{{ $recaptcha['site_key'] }}" @else data-submit-lock @endif>
+        <form method="POST" action="{{ route('register') }}" class="auth-form" @if($recaptcha['enabled'] && $recaptcha['type'] === 'score') data-recaptcha-form data-recaptcha-action="register" data-recaptcha-site-key="{{ $recaptcha['site_key'] }}" @else data-submit-lock @endif>
             @csrf
             <label for="name">{{ __('ui.name') }}</label>
             <input id="name" name="name" value="{{ old('name') }}" autocomplete="name" required autofocus>

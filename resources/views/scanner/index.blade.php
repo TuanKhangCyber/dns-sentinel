@@ -2,7 +2,7 @@
 
 @section('content')
 <section class="scanner-hero">
-    <p class="eyebrow">AUTHORIZED SECURITY ASSESSMENT</p>
+    <p class="eyebrow">{{ __('scanner.authorized_assessment') }}</p>
     <h1>{{ __('scanner.title') }}</h1>
     <p>{{ __('scanner.disclaimer') }}</p>
 </section>
@@ -15,7 +15,7 @@
         @endunless
         <form id="scannerCreateForm" class="scanner-form" data-store-url="{{ route('scanner.scans.store') }}">
             <label for="scannerTarget">{{ __('scanner.target') }}</label>
-            <input id="scannerTarget" name="target" required placeholder="example.com / 8.8.8.8 / CIDR">
+            <input id="scannerTarget" name="target" required placeholder="{{ __('scanner.target_placeholder') }}">
 
             <label for="scannerProfile">{{ __('scanner.profile') }}</label>
             <select id="scannerProfile" name="profile" required>
@@ -43,7 +43,7 @@
     </section>
 
     <section id="currentScan" class="scanner-card" hidden>
-        <div class="service-heading"><h2>{{ __('scanner.current_scan') }}</h2><span id="currentScanStatus" class="risk-badge warning">queued</span></div>
+        <div class="service-heading"><h2>{{ __('scanner.current_scan') }}</h2><span id="currentScanStatus" class="risk-badge warning">{{ __('scanner.queued') }}</span></div>
         <dl class="recon-kv-grid"><div><dt>{{ __('scanner.target') }}</dt><dd id="currentScanTarget">—</dd></div><div><dt>{{ __('scanner.stage') }}</dt><dd id="currentScanStage">—</dd></div><div><dt>{{ __('scanner.elapsed') }}</dt><dd id="currentScanElapsed">0s</dd></div></dl>
         <div class="scan-progress"><span id="currentScanProgress" style="width:0%"></span></div>
         <p id="currentScanProgressText">0%</p>

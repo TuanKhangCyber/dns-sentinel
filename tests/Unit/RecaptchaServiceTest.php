@@ -20,6 +20,7 @@ class RecaptchaServiceTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        config()->set('recaptcha.type', 'score');
         config()->set('recaptcha.site_key', 'public-site-key');
         config()->set('recaptcha.secret_key', 'private-secret-key');
         SystemSetting::where('key', 'recaptcha_enabled')->update(['value' => '1']);
@@ -32,6 +33,20 @@ class RecaptchaServiceTest extends TestCase
         app(RecaptchaService::class)->verify($this->requestWithToken('valid-token'), 'register');
         Http::assertSent(fn ($request) => $request['secret'] === 'private-secret-key' && $request['response'] === 'valid-token');
         $this->assertTrue(true);
+    }
+
+    public function test_checkbox_token_does_not_require_v3_score_or_action(): void
+    {
+        config()->set('recaptcha.type', 'checkbox');
+        Http::fake(['*' => Http::response([
+            'success' => true,
+            'hostname' => 'localhost',
+            'challenge_ts' => now()->toIso8601String(),
+        ], 200)]);
+
+        app(RecaptchaService::class)->verify($this->requestWithToken('checkbox-token'), 'register');
+
+        Http::assertSent(fn ($request) => $request['response'] === 'checkbox-token');
     }
 
     #[DataProvider('invalidPayloads')]

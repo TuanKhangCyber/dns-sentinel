@@ -34,6 +34,10 @@ class RecaptchaService
         if (! $this->enabledFor('login')) {
             return false;
         }
+        if ((bool) config('recaptcha.login_always_visible', true)) {
+            return true;
+        }
+
         $threshold = max(1, (int) $this->settings->get('recaptcha_login_failure_threshold', config('recaptcha.login_failure_threshold', 2)));
 
         return RateLimiter::attempts($throttleKey) >= $threshold;
@@ -69,12 +73,14 @@ class RecaptchaService
         if (! is_array($payload) || ($payload['success'] ?? false) !== true) {
             throw new RecaptchaException;
         }
-        if (! hash_equals($action, (string) ($payload['action'] ?? ''))) {
-            throw new RecaptchaException;
-        }
-        $minimum = (float) $this->settings->get('recaptcha_min_score', config('recaptcha.minimum_score', 0.5));
-        if (! isset($payload['score']) || ! is_numeric($payload['score']) || (float) $payload['score'] < $minimum) {
-            throw new RecaptchaException;
+        if ($this->type() === 'score') {
+            if (! hash_equals($action, (string) ($payload['action'] ?? ''))) {
+                throw new RecaptchaException;
+            }
+            $minimum = (float) $this->settings->get('recaptcha_min_score', config('recaptcha.minimum_score', 0.5));
+            if (! isset($payload['score']) || ! is_numeric($payload['score']) || (float) $payload['score'] < $minimum) {
+                throw new RecaptchaException;
+            }
         }
         $hostname = trim((string) config('recaptcha.expected_hostname', ''));
         if ($hostname !== '' && ! hash_equals(strtolower($hostname), strtolower((string) ($payload['hostname'] ?? '')))) {
@@ -104,6 +110,12 @@ class RecaptchaService
         return [
             'enabled' => $enabled, 'configured' => $this->configured(),
             'site_key' => $enabled ? config('recaptcha.site_key') : null, 'action' => $action,
+            'type' => $this->type(),
         ];
+    }
+
+    private function type(): string
+    {
+        return config('recaptcha.type') === 'score' ? 'score' : 'checkbox';
     }
 }

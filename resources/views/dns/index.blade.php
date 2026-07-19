@@ -4,14 +4,14 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>DNS Dump</title>
+    <title>{{ __('ui.dns_page_title') }}</title>
     @include('partials.theme-bootstrap')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
     @include('partials.app-navigation', ['placement' => 'dns'])
     <section class="dashboard-hero">
-        <p class="eyebrow">SECURITY OPERATIONS</p>
+        <p class="eyebrow">{{ __('ui.security_operations') }}</p>
         <h1>{{ __('ui.dashboard_title') }}</h1>
         <p>{{ __('ui.dashboard_intro') }}</p>
     </section>
@@ -96,6 +96,7 @@
 
         <main class="dashboard-main">
             <form id="lookupForm" class="scan-form">
+                <label class="sr-only" for="target">{{ __('ui.scan_domain') }}</label>
                 <input id="target" name="target" placeholder="{{ __('ui.scan_placeholder') }}" required>
                 <button type="submit">{{ __('ui.scan_domain') }}</button>
             </form>
@@ -107,7 +108,7 @@
                 @if($featureStatuses['export_pdf']['allowed'])<a id="exportPdf" class="button-link" data-recon-export data-export-base="{{ url('/recon/history') }}" data-export-format="pdf" aria-disabled="true">{{ __('ui.export_pdf') }}</a>@else<span class="badge warning" aria-disabled="true">PDF · Plus</span>@endif
             </div>
 
-            <nav class="result-tabs" aria-label="Security results">
+            <nav class="result-tabs" aria-label="{{ __('ui.security_results') }}">
                 @php($tabFeatures = ['ssl_certificate'=>'ssl_analysis','security_headers'=>'security_headers','email_security'=>'email_security','subdomains'=>'subdomain_scan','tech_fingerprint'=>'technology_fingerprint','nmap'=>'nmap_scan'])
                 @foreach ([
                     'dns' => __('ui.tab_dns'), 'ssl_certificate' => __('ui.tab_ssl'),
@@ -176,9 +177,9 @@
 
             <section class="tab-panel" data-tab-panel="subdomains">
                 <div class="service-heading"><h2>{{ __('ui.tab_subdomains') }}</h2><span class="service-badge" data-service-badge="subdomains">—</span></div>
-                <input id="subdomainFilter" class="table-filter" placeholder="{{ __('ui.filter_subdomains') }}">
+            <input id="subdomainFilter" class="table-filter" placeholder="{{ __('ui.filter_subdomains') }}" aria-label="{{ __('ui.filter_subdomains') }}">
                 <div class="table-scroll"><table class="subdomain-table">
-                    <thead><tr><th data-sort-subdomains>{{ __('ui.subdomain_name') }}</th><th>{{ __('ui.resolution') }}</th><th>IP</th></tr></thead>
+                    <thead><tr><th data-sort-subdomains>{{ __('ui.subdomain_name') }}</th><th>{{ __('ui.resolution') }}</th><th>{{ __('ui.ip_short') }}</th></tr></thead>
                     <tbody id="subdomainRows"><tr><td colspan="3">{{ __('ui.loading_service') }}</td></tr></tbody>
                 </table></div>
             </section>
@@ -186,7 +187,7 @@
             <section class="tab-panel" data-tab-panel="rdap">
                 <div class="service-heading"><h2>{{ __('ui.tab_rdap') }}</h2></div>
                 <div>
-            <h3>RDAP / WHOIS</h3>
+            <h3>{{ __('ui.rdap_whois') }}</h3>
             <div id="rdap" class="rdap-details"
                 data-label-domain="{{ __('ui.rdap_domain') }}"
                 data-label-handle="{{ __('ui.rdap_handle') }}"

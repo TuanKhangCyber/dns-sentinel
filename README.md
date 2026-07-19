@@ -83,22 +83,24 @@ Trang `/admin` cho phép quản lý user, membership, credit adjustment, plan-fe
 
 Project chưa có payment gateway. Nút yêu cầu nâng cấp chỉ thông báo quy trình nâng cấp, không tạo checkout hoặc giao dịch giả.
 
-## Google reCAPTCHA v3
+## Google reCAPTCHA
 
-reCAPTCHA được xác minh ở backend. Registration có thể bật riêng; login dùng adaptive challenge sau số lần thất bại cấu hình. Secret chỉ nằm trong `.env`, không lưu hoặc hiển thị trong admin/database.
+Mặc định project dùng **reCAPTCHA v2 Checkbox** để hiện ô “Tôi không phải người máy” ngay trên trang đăng nhập và đăng ký. Hãy tạo key loại **Challenge (v2) / “I'm not a robot” Checkbox** trong Google reCAPTCHA Admin, rồi đăng ký `localhost` cho môi trường demo và hostname thật cho production. Token luôn được xác minh ở backend; secret chỉ nằm trong `.env`, không lưu hoặc hiển thị trong admin/database.
 
 ```dotenv
 RECAPTCHA_ENABLED=false
+RECAPTCHA_TYPE=checkbox
 RECAPTCHA_SITE_KEY=
 RECAPTCHA_SECRET_KEY=
 RECAPTCHA_MIN_SCORE=0.5
 RECAPTCHA_EXPECTED_HOSTNAME=
 RECAPTCHA_REGISTER_ENABLED=true
 RECAPTCHA_LOGIN_ENABLED=true
+RECAPTCHA_LOGIN_ALWAYS_VISIBLE=true
 RECAPTCHA_LOGIN_FAILURE_THRESHOLD=2
 ```
 
-Chỉ bật reCAPTCHA trong admin sau khi cả site key và secret đã được cấu hình. Sau khi đổi `.env`, chạy `php artisan optimize:clear`. Automated tests fake Google HTTP và không cần key thật.
+Chỉ bật reCAPTCHA trong admin sau khi cả site key và secret đã được cấu hình. `RECAPTCHA_MIN_SCORE` chỉ áp dụng khi dùng key v3 và đặt `RECAPTCHA_TYPE=score`; có thể đặt `RECAPTCHA_LOGIN_ALWAYS_VISIBLE=false` để quay lại cơ chế challenge sau ngưỡng đăng nhập sai. Sau khi đổi `.env`, chạy `php artisan optimize:clear`. Automated tests fake Google HTTP và không cần key thật.
 
 ## DNS Recon
 
@@ -209,7 +211,7 @@ PHPUnit còn có guard tại `tests/TestCase.php`: test dừng trước `Refresh
 - **Scan nằm ở queued:** chạy worker `--queue=scanner`, kiểm tra `jobs` và `failed_jobs`.
 - **Vite manifest/asset không tồn tại:** chạy `npm ci` rồi `npm run build`.
 - **Nessus unavailable:** giữ `NESSUS_ENABLED=false` nếu chưa có API hợp lệ.
-- **reCAPTCHA luôn từ chối:** kiểm tra site/secret key, expected hostname, action và đồng hồ máy chủ; không log token.
+- **reCAPTCHA không hiện hoặc luôn từ chối:** kiểm tra đúng loại key (`checkbox` hoặc `score`), site/secret key, domain đã đăng ký, expected hostname và đồng hồ máy chủ; không log token.
 - **Đổi `.env` chưa có hiệu lực:** `php artisan optimize:clear` và restart server/worker.
 
 ## Production notes

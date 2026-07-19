@@ -4,6 +4,7 @@ if (scannerData) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const terminal = new Set(['completed', 'failed', 'cancelled']);
     const vi = document.documentElement.lang === 'vi';
+    const labels = scannerData.dataset;
     const messages = {
         invalidResponse: vi ? 'Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại.' : 'The server returned an invalid response. Please try again.',
         timeout: vi ? 'Yêu cầu quá thời gian. Vui lòng thử lại.' : 'The request timed out. Please try again.',
@@ -73,12 +74,14 @@ if (scannerData) {
         headers.forEach((value, column) => {
             const cell = node('th', value, 'sortable-column');
             cell.tabIndex = 0;
+            cell.setAttribute('aria-sort', 'none');
             const sort = () => {
                 const rowsToSort = [...body.rows];
                 const direction = cell.dataset.direction === 'asc' ? 'desc' : 'asc';
                 rowsToSort.sort((left, right) => left.cells[column].textContent.trim().localeCompare(right.cells[column].textContent.trim(), undefined, {numeric: true}) * (direction === 'asc' ? 1 : -1));
                 rowsToSort.forEach(row => body.appendChild(row));
                 cell.dataset.direction = direction;
+                [...headRow.cells].forEach(header => header.setAttribute('aria-sort', header === cell ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'));
             };
             cell.addEventListener('click', sort);
             cell.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') sort(); });
@@ -196,27 +199,27 @@ if (scannerData) {
         const renderHosts = () => {
             const query = document.getElementById('hostSearch').value.toLowerCase();
             const rows = hosts.filter(host => `${host.ip_address} ${host.hostname || ''}`.toLowerCase().includes(query)).map(host => [host.ip_address, host.hostname, host.status, host.vendor, host.response_time ? `${host.response_time} ms` : '—']);
-            document.getElementById('scanHosts').replaceChildren(table(['IP', 'Hostname', 'Status', 'Vendor', 'Response'], rows));
+            document.getElementById('scanHosts').replaceChildren(table([labels.labelIp, labels.labelHostname, labels.labelStatus, labels.labelVendor, labels.labelResponse], rows));
         };
         const renderPorts = () => {
             const state = document.getElementById('portStateFilter').value; const protocol = document.getElementById('portProtocolFilter').value; const query = document.getElementById('portSearch').value.toLowerCase();
             const rows = hosts.flatMap(host => (host.ports || []).map(port => ({...port, host: host.ip_address}))).filter(port => (!state || port.state === state) && (!protocol || port.protocol === protocol) && `${port.service || ''} ${port.product || ''} ${port.host}`.toLowerCase().includes(query)).map(port => [port.host, port.port, port.protocol, port.state, port.service, [port.product, port.version].filter(Boolean).join(' ')]);
-            document.getElementById('scanPorts').replaceChildren(table(['Host', 'Port', 'Protocol', 'State', 'Service', 'Product'], rows));
+            document.getElementById('scanPorts').replaceChildren(table([labels.labelHost, labels.labelPort, labels.labelProtocol, labels.labelState, labels.labelService, labels.labelProduct], rows));
         };
         const renderFindings = () => {
             const severity = document.getElementById('findingSeverityFilter').value; const status = document.getElementById('findingStatusFilter').value; const query = document.getElementById('findingSearch').value.toLowerCase();
             const badgeClass = value => ({critical:'danger', high:'danger', medium:'warning', low:'warning', informational:'info', passed:'safe'}[value] || 'unknown');
             const rows = findings.filter(finding => (!severity || finding.severity === severity) && (!status || finding.status === status) && JSON.stringify(finding).toLowerCase().includes(query)).map(finding => [node('span', finding.severity, `risk-badge ${badgeClass(finding.severity)}`), finding.title, finding.host?.ip_address, finding.port?.port, (finding.cve || []).join(', '), node('span', finding.status, `risk-badge ${badgeClass(finding.status)}`)]);
-            document.getElementById('scanFindings').replaceChildren(table(['Severity', 'Title', 'Host', 'Port', 'CVE', 'Status'], rows));
+            document.getElementById('scanFindings').replaceChildren(table([labels.labelSeverity, labels.labelTitle, labels.labelHost, labels.labelPort, 'CVE', labels.labelStatus], rows));
         };
         const render = payload => {
             hosts = payload.data.hosts?.data || []; findings = payload.data.findings?.data || []; const summary = payload.data.summary || {};
             const overview = document.getElementById('scanOverview'); overview.replaceChildren();
-            [['Hosts', summary.hosts], ['Hosts up', summary.hosts_up], ['Ports', summary.ports], ['Open ports', summary.open_ports], ['Findings', summary.findings]].forEach(([label, value]) => { const card = node('article', '', 'metric-card'); card.append(node('strong', value ?? 0), node('span', label)); overview.appendChild(card); });
+            [[labels.labelHosts, summary.hosts], [labels.labelHostsUp, summary.hosts_up], [labels.labelPorts, summary.ports], [labels.labelOpenPorts, summary.open_ports], [labels.labelFindings, summary.findings]].forEach(([label, value]) => { const card = node('article', '', 'metric-card'); card.append(node('strong', value ?? 0), node('span', label)); overview.appendChild(card); });
             renderHosts(); renderPorts(); renderFindings();
-            document.getElementById('scanOperatingSystems').replaceChildren(table(['Host', 'Operating system', 'Accuracy'], hosts.filter(host => host.operating_system).map(host => [host.ip_address, host.operating_system, `${host.os_accuracy ?? 0}%`])));
-            document.getElementById('scanCves').replaceChildren(table(['CVE', 'Finding', 'Severity'], findings.flatMap(finding => (finding.cve || []).map(cve => [cve, finding.title, finding.severity]))));
-            document.getElementById('scanRemediation').replaceChildren(table(['Finding', 'Solution'], findings.filter(finding => finding.solution).map(finding => [finding.title, finding.solution])));
+            document.getElementById('scanOperatingSystems').replaceChildren(table([labels.labelHost, labels.labelOperatingSystem, labels.labelAccuracy], hosts.filter(host => host.operating_system).map(host => [host.ip_address, host.operating_system, `${host.os_accuracy ?? 0}%`])));
+            document.getElementById('scanCves').replaceChildren(table(['CVE', labels.labelFinding, labels.labelSeverity], findings.flatMap(finding => (finding.cve || []).map(cve => [cve, finding.title, finding.severity]))));
+            document.getElementById('scanRemediation').replaceChildren(table([labels.labelFinding, labels.labelSolution], findings.filter(finding => finding.solution).map(finding => [finding.title, finding.solution])));
             document.getElementById('scanEvidence').textContent = JSON.stringify({summary, hosts, findings}, null, 2);
         };
         document.getElementById('hostSearch')?.addEventListener('input', renderHosts);

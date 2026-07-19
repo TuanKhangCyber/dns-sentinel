@@ -17,6 +17,8 @@ class RecaptchaAuthenticationTest extends TestCase
     {
         parent::setUp();
         Cache::flush();
+        config()->set('recaptcha.type', 'checkbox');
+        config()->set('recaptcha.login_always_visible', true);
         config()->set('recaptcha.site_key', 'site-public');
         config()->set('recaptcha.secret_key', 'secret-private');
         foreach (['recaptcha_enabled', 'recaptcha_register_enabled', 'recaptcha_login_enabled'] as $key) {
@@ -29,7 +31,7 @@ class RecaptchaAuthenticationTest extends TestCase
         $payload = ['name' => 'Bot Test', 'email' => 'bot@example.test', 'password' => 'password123', 'password_confirmation' => 'password123'];
         $this->post('/register', $payload)->assertSessionHasErrors('recaptcha');
         $this->assertDatabaseMissing('users', ['email' => 'bot@example.test']);
-        Http::fake(['*' => Http::response($this->payload('register'), 200)]);
+        Http::fake(['*' => Http::response($this->payload(), 200)]);
         $this->post('/register', [...$payload, 'g-recaptcha-response' => 'valid-register'])->assertRedirect('/dns');
         $user = User::where('email', 'bot@example.test')->firstOrFail();
         $this->assertSame('free', $user->plan->code);
@@ -37,21 +39,26 @@ class RecaptchaAuthenticationTest extends TestCase
         $this->assertDatabaseHas('credit_transactions', ['user_id' => $user->id, 'type' => 'grant']);
     }
 
-    public function test_adaptive_login_requires_correct_login_action_after_failure_threshold(): void
+    public function test_login_requires_visible_checkbox_on_first_attempt_and_accepts_verified_token(): void
     {
-        SystemSetting::where('key', 'recaptcha_login_failure_threshold')->update(['value' => '1']);
-        Cache::flush();
-        Http::fake(fn ($request) => Http::response($this->payload($request['response'] === 'login-token' ? 'login' : 'register'), 200));
         $user = User::factory()->create(['email' => 'login@example.test', 'password' => 'password123']);
-        $this->post('/login', ['email' => $user->email, 'password' => 'wrong'])->assertSessionHasErrors('email');
+
+        $this->get('/login')
+            ->assertOk()
+            ->assertSee('class="g-recaptcha"', false)
+            ->assertSee('data-sitekey="site-public"', false)
+            ->assertSee('google.com/recaptcha/api.js?hl=', false);
+
         $this->post('/login', ['email' => $user->email, 'password' => 'password123'])->assertSessionHasErrors('recaptcha');
-        $this->post('/login', ['email' => $user->email, 'password' => 'password123', 'g-recaptcha-response' => 'wrong-action'])->assertSessionHasErrors('recaptcha');
+        Http::fake(['*' => Http::response($this->payload(), 200)]);
         $this->post('/login', ['email' => $user->email, 'password' => 'password123', 'g-recaptcha-response' => 'login-token'])->assertRedirect('/dns');
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_login_page_loads_google_only_after_adaptive_threshold_and_success_clears_counter(): void
+    public function test_score_mode_remains_available_for_existing_v3_keys(): void
     {
+        config()->set('recaptcha.type', 'score');
+        config()->set('recaptcha.login_always_visible', false);
         SystemSetting::where('key', 'recaptcha_login_failure_threshold')->update(['value' => '1']);
         Cache::flush();
         $user = User::factory()->create(['email' => 'adaptive@example.test', 'password' => 'password123']);
@@ -60,7 +67,7 @@ class RecaptchaAuthenticationTest extends TestCase
         $this->post('/login', ['email' => $user->email, 'password' => 'wrong'])->assertSessionHasErrors('email');
         $this->get('/login')->assertOk()->assertSee('google.com/recaptcha/api.js', false)->assertSee('site-public');
 
-        Http::fake(['*' => Http::response($this->payload('login'), 200)]);
+        Http::fake(['*' => Http::response($this->scorePayload('login'), 200)]);
         $this->post('/login', ['email' => $user->email, 'password' => 'password123', 'g-recaptcha-response' => 'adaptive-token'])->assertRedirect('/dns');
         $this->post('/logout')->assertRedirect('/login');
         $this->get('/login')->assertOk()->assertDontSee('google.com/recaptcha/api.js', false);
@@ -95,7 +102,12 @@ class RecaptchaAuthenticationTest extends TestCase
         $this->actingAs(User::factory()->create())->put('/admin/settings', [])->assertForbidden();
     }
 
-    private function payload(string $action): array
+    private function payload(): array
+    {
+        return ['success' => true, 'hostname' => 'localhost', 'challenge_ts' => now()->toIso8601String()];
+    }
+
+    private function scorePayload(string $action): array
     {
         return ['success' => true, 'score' => 0.9, 'action' => $action, 'hostname' => 'localhost', 'challenge_ts' => now()->toIso8601String()];
     }
