@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PlatformHttpSmokeTest extends TestCase
@@ -70,7 +71,7 @@ class PlatformHttpSmokeTest extends TestCase
         $this->assertSame(1, CreditTransaction::where('user_id', $freeUser->id)->where('type', 'usage')->count());
         $this->actingAs($admin)->put(route('admin.features.update', $feature), $this->featurePayload($feature, true, [$plus->id]))->assertSessionHasNoErrors();
 
-        $this->post(route('admin.users.credits', $freeUser), ['amount' => 7, 'reason' => 'Smoke test adjustment'])->assertSessionHasNoErrors();
+        $this->post(route('admin.users.credits', $freeUser), ['amount' => 7, 'reason' => 'Smoke test adjustment', 'idempotency_key' => (string) Str::uuid()])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('credit_transactions', ['user_id' => $freeUser->id, 'type' => 'adjustment', 'created_by' => $admin->id]);
         $this->assertTrue(AuditLog::where('action', 'credits.adjusted')->where('actor_id', $admin->id)->exists());
 

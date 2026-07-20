@@ -12,7 +12,7 @@ class FeatureAccessService
 
     public function status(User $user, string $code): array
     {
-        if ($user->isSuspended()) {
+        if (! $user->isActive()) {
             return $this->denied($code, 'account_suspended', 403);
         }
         $plan = $this->memberships->effectivePlan($user);

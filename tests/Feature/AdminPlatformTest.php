@@ -7,9 +7,14 @@ use App\Models\ContentPage;
 use App\Models\FaqItem;
 use App\Models\Feature;
 use App\Models\Plan;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Services\SystemSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class AdminPlatformTest extends TestCase
@@ -55,15 +60,97 @@ class AdminPlatformTest extends TestCase
         $this->assertTrue($free->fresh()->is_active);
     }
 
+    public function test_database_configured_default_plan_cannot_be_disabled(): void
+    {
+        $admin = User::factory()->admin()->free()->create();
+        $plus = Plan::where('code', 'plus')->firstOrFail();
+        SystemSetting::where('key', 'default_plan')->update(['value' => 'plus']);
+        Cache::forget('setting:default_plan');
+
+        $this->actingAs($admin)->put(route('admin.plans.update', $plus), [
+            'plan_id' => $plus->id,
+            'name' => $plus->name,
+            'description' => $plus->description,
+            'monthly_credit_allowance' => $plus->monthly_credit_allowance,
+            'history_retention_days' => $plus->history_retention_days,
+            'is_active' => 0,
+        ])->assertSessionHasErrors('is_active');
+
+        $this->assertTrue($plus->fresh()->is_active);
+    }
+
     public function test_admin_adjustment_requires_reason_and_cannot_make_balance_negative(): void
     {
         $admin = User::factory()->admin()->create();
         $user = User::factory()->create();
         $user->wallet()->create(['balance' => 2]);
-        $this->actingAs($admin)->post(route('admin.users.credits', $user), ['amount' => -3, 'reason' => 'manual correction'])->assertSessionHasErrors('amount');
+        $this->actingAs($admin)->post(route('admin.users.credits', $user), ['amount' => -3, 'reason' => 'manual correction', 'idempotency_key' => (string) Str::uuid()])->assertSessionHasErrors('amount');
         $this->assertSame(2, $user->wallet->fresh()->balance);
-        $this->post(route('admin.users.credits', $user), ['amount' => 5, 'reason' => 'support adjustment'])->assertSessionHasNoErrors();
+        $this->post(route('admin.users.credits', $user), ['amount' => 5, 'reason' => 'support adjustment', 'idempotency_key' => (string) Str::uuid()])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('audit_logs', ['action' => 'credits.adjusted', 'actor_id' => $admin->id]);
+    }
+
+    public function test_duplicate_admin_credit_adjustment_is_idempotent(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $user->wallet()->create(['balance' => 10]);
+        $payload = ['amount' => 5, 'reason' => 'Idempotency regression', 'idempotency_key' => (string) Str::uuid()];
+
+        $this->actingAs($admin)->post(route('admin.users.credits', $user), $payload)->assertSessionHasNoErrors();
+        $this->post(route('admin.users.credits', $user), $payload)->assertSessionHasNoErrors();
+
+        $this->assertSame(15, $user->wallet->fresh()->balance);
+        $this->assertSame(1, $user->creditTransactions()->where('type', 'adjustment')->count());
+        $this->assertSame(1, AuditLog::where('action', 'credits.adjusted')->where('target_id', $user->id)->count());
+    }
+
+    public function test_reused_credit_adjustment_key_with_different_details_is_rejected(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $user->wallet()->create(['balance' => 10]);
+        $key = (string) Str::uuid();
+
+        $this->actingAs($admin)->post(route('admin.users.credits', $user), [
+            'amount' => 5, 'reason' => 'First approved adjustment', 'idempotency_key' => $key,
+        ])->assertSessionHasNoErrors();
+        $this->post(route('admin.users.credits', $user), [
+            'amount' => 7, 'reason' => 'Different replay details', 'idempotency_key' => $key,
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertSame(15, $user->wallet->fresh()->balance);
+        $this->assertSame(1, $user->creditTransactions()->where('type', 'adjustment')->count());
+    }
+
+    public function test_credit_adjustment_rolls_back_when_audit_write_fails(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $user->wallet()->create(['balance' => 10]);
+        $this->mock(AuditService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new \RuntimeException('audit storage unavailable'));
+        });
+
+        $this->actingAs($admin)->post(route('admin.users.credits', $user), [
+            'amount' => 5,
+            'reason' => 'Atomic rollback regression',
+            'idempotency_key' => (string) Str::uuid(),
+        ])->assertServerError();
+
+        $this->assertSame(10, $user->wallet->fresh()->balance);
+        $this->assertSame(0, $user->creditTransactions()->where('type', 'adjustment')->count());
+    }
+
+    public function test_suspended_admin_and_regular_user_cannot_access_admin_ledger_pages(): void
+    {
+        $regularUser = User::factory()->create();
+        $suspendedAdmin = User::factory()->admin()->create(['status' => 'suspended']);
+
+        foreach ([route('admin.credits.index'), route('admin.audit.index')] as $url) {
+            $this->actingAs($regularUser)->get($url)->assertForbidden();
+            $this->actingAs($suspendedAdmin)->get($url)->assertForbidden();
+        }
     }
 
     public function test_unregistered_metadata_feature_cannot_be_enabled(): void
@@ -146,14 +233,46 @@ class AdminPlatformTest extends TestCase
         config()->set('recaptcha.site_key', 'site');
         config()->set('recaptcha.secret_key', 'secret-env-only');
         $admin = User::factory()->admin()->create();
+        $settings = app(SystemSettingService::class);
+        $settings->get('site_name');
         $payload = ['site_name' => 'DNS', 'default_plan' => 'free', 'default_signup_credits' => 10, 'registration_enabled' => 1,
             'recaptcha_enabled' => 1, 'recaptcha_login_enabled' => 1, 'recaptcha_register_enabled' => 1,
-            'recaptcha_password_reset_enabled' => 1, 'recaptcha_min_score' => 2, 'recaptcha_login_failure_threshold' => 2];
+            'recaptcha_password_reset_enabled' => 1, 'recaptcha_type' => 'score', 'recaptcha_login_always_visible' => 1,
+            'recaptcha_min_score' => 2, 'recaptcha_login_failure_threshold' => 2];
         $this->actingAs($admin)->put('/admin/settings', $payload)->assertSessionHasErrors('recaptcha_min_score');
         $payload['recaptcha_min_score'] = 0.7;
         $this->put('/admin/settings', $payload)->assertSessionHasNoErrors();
         $audit = AuditLog::where('action', 'settings.updated')->latest()->firstOrFail();
         $this->assertStringNotContainsString('secret-env-only', json_encode([$audit->before, $audit->after]));
+        $this->assertSame('DNS', $settings->get('site_name'));
+    }
+
+    public function test_failed_settings_transaction_keeps_database_and_cache_consistent(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $settings = app(SystemSettingService::class);
+        $originalName = $settings->get('site_name');
+        $this->mock(AuditService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new \RuntimeException('audit unavailable'));
+        });
+
+        $this->actingAs($admin)->put(route('admin.settings.update'), [
+            'site_name' => 'Must Roll Back',
+            'default_plan' => 'free',
+            'default_signup_credits' => 10,
+            'registration_enabled' => 1,
+            'recaptcha_enabled' => 0,
+            'recaptcha_login_enabled' => 1,
+            'recaptcha_register_enabled' => 1,
+            'recaptcha_password_reset_enabled' => 1,
+            'recaptcha_type' => 'checkbox',
+            'recaptcha_login_always_visible' => 1,
+            'recaptcha_min_score' => 0.5,
+            'recaptcha_login_failure_threshold' => 2,
+        ])->assertServerError();
+
+        $this->assertSame($originalName, SystemSetting::where('key', 'site_name')->value('value'));
+        $this->assertSame($originalName, $settings->get('site_name'));
     }
 
     public function test_audit_service_redacts_nested_credentials_and_tokens(): void
@@ -162,14 +281,37 @@ class AdminPlatformTest extends TestCase
         $audit = app(AuditService::class)->record($admin, 'security.redaction_test', $admin, [
             'name' => 'safe',
             'password' => 'password-value',
-            'nested' => ['g-recaptcha-response-token' => 'token-value', 'api_key' => 'api-value'],
-        ], ['secret_key' => 'secret-value']);
+            'nested' => ['g-recaptcha-response-token' => 'token-value', 'api_key' => 'api-value', 'x-api-keys' => 'header-api-value'],
+        ], ['secret_key' => 'secret-value', 'private_key' => 'private-value', 'access_key' => 'access-value']);
         $encoded = json_encode([$audit->before, $audit->after], JSON_THROW_ON_ERROR);
 
         $this->assertStringContainsString('safe', $encoded);
-        foreach (['password-value', 'token-value', 'api-value', 'secret-value'] as $sensitive) {
+        foreach (['password-value', 'token-value', 'api-value', 'header-api-value', 'secret-value', 'private-value', 'access-value'] as $sensitive) {
             $this->assertStringNotContainsString($sensitive, $encoded);
         }
+    }
+
+    public function test_admin_audit_page_does_not_render_redacted_secrets(): void
+    {
+        $admin = User::factory()->admin()->create();
+        AuditLog::create([
+            'actor_id' => $admin->id,
+            'action' => 'security.legacy_ui_redaction_test',
+            'target_type' => User::class,
+            'target_id' => $admin->id,
+            'before' => [
+                'authorization' => 'Bearer private-token',
+                'nested' => ['g-recaptcha-response' => 'captcha-token', 'safe' => 'visible-value'],
+            ],
+            'after' => ['cookie' => 'session-cookie'],
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.audit.index'))
+            ->assertOk()
+            ->assertSee('visible-value')
+            ->assertDontSee('private-token')
+            ->assertDontSee('captcha-token')
+            ->assertDontSee('session-cookie');
     }
 
     public function test_make_admin_command_promotes_existing_user_without_changing_password(): void
@@ -179,5 +321,22 @@ class AdminPlatformTest extends TestCase
         $this->artisan('user:make-admin', ['email' => $user->email])->assertSuccessful();
         $this->assertTrue($user->fresh()->isAdmin());
         $this->assertSame($password, $user->fresh()->password);
+    }
+
+    public function test_make_admin_command_rolls_back_when_audit_fails(): void
+    {
+        $user = User::factory()->create(['role' => 'user']);
+        $this->mock(AuditService::class, function ($mock): void {
+            $mock->shouldReceive('record')->once()->andThrow(new \RuntimeException('audit unavailable'));
+        });
+
+        try {
+            Artisan::call('user:make-admin', ['email' => $user->email]);
+            $this->fail('The command should fail when its audit write fails.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('audit unavailable', $exception->getMessage());
+        }
+
+        $this->assertSame('user', $user->fresh()->role);
     }
 }

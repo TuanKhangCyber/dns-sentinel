@@ -3,9 +3,9 @@
 return [
 
     'login' => 'Đăng nhập',
-    'login_intro' => 'Đăng nhập để sử dụng công cụ tra cứu DNS.',
+    'login_intro' => 'Đăng nhập để kiểm tra DNS.',
     'register' => 'Đăng ký',
-    'register_intro' => 'Tạo tài khoản để bắt đầu tra cứu DNS.',
+    'register_intro' => 'Tạo tài khoản để bắt đầu.',
     'email' => 'Email',
     'password' => 'Mật khẩu',
     'password_confirmation' => 'Xác nhận mật khẩu',
@@ -14,6 +14,14 @@ return [
     'no_account' => 'Chưa có tài khoản?',
     'has_account' => 'Đã có tài khoản?',
     'logout' => 'Đăng xuất',
+    'login_history' => 'Lịch sử đăng nhập',
+    'login_history_intro' => 'Theo dõi các phiên đăng nhập gần đây của tài khoản.',
+    'account_activity' => 'Hoạt động tài khoản',
+    'login_at' => 'Đăng nhập lúc',
+    'logout_at' => 'Đăng xuất lúc',
+    'device' => 'Thiết bị / trình duyệt',
+    'active_session' => 'Đang hoạt động',
+    'no_login_history' => 'Chưa có lịch sử đăng nhập.',
     'hello' => 'Xin chào,',
     'language' => 'Ngôn ngữ',
     'country' => 'Quốc gia',
@@ -166,8 +174,4 @@ return [
     'nmap_host_up' => 'Đang hoạt động',
     'nmap_host_down' => 'Không phản hồi',
     'nmap_no_open_ports' => 'Không phát hiện cổng mở trong phạm vi quét.',
-    'countries' => [
-        'VN' => 'Việt Nam', 'US' => 'Hoa Kỳ', 'GB' => 'Vương quốc Anh',
-        'JP' => 'Nhật Bản', 'KR' => 'Hàn Quốc', 'SG' => 'Singapore',
-    ],
 ];

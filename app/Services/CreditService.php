@@ -65,10 +65,19 @@ class CreditService
         }, 3);
     }
 
-    public function adjust(User $user, int $amount, User $actor, string $reason): CreditTransaction
+    public function adjust(User $user, int $amount, User $actor, string $reason, ?string $idempotencyKey = null): CreditTransaction
     {
-        return DB::transaction(function () use ($user, $amount, $actor, $reason) {
+        $key = 'adjustment:'.$user->id.':'.$actor->id.':'.($idempotencyKey ?: str()->uuid());
+        $description = mb_substr($reason, 0, 1000);
+
+        return DB::transaction(function () use ($user, $amount, $actor, $description, $key) {
+            if ($existing = CreditTransaction::where('idempotency_key', $key)->first()) {
+                return $this->validatedAdjustmentReplay($existing, $amount, $actor, $description);
+            }
             $wallet = $this->lockedWallet($user);
+            if ($existing = CreditTransaction::where('idempotency_key', $key)->first()) {
+                return $this->validatedAdjustmentReplay($existing, $amount, $actor, $description);
+            }
             if ($amount < 0 && $wallet->balance < abs($amount)) {
                 throw new FeatureAccessException('insufficient_credits', 422, __('platform.errors.insufficient_credits'));
             }
@@ -76,7 +85,7 @@ class CreditService
 
             return CreditTransaction::create([
                 'user_id' => $user->id, 'amount' => $amount, 'type' => 'adjustment', 'created_by' => $actor->id,
-                'idempotency_key' => 'adjustment:'.str()->uuid(), 'description' => mb_substr($reason, 0, 1000),
+                'idempotency_key' => $key, 'description' => $description,
             ]);
         }, 3);
     }
@@ -106,5 +115,21 @@ class CreditService
         $user->wallet()->firstOrCreate([], ['balance' => app(MembershipService::class)->effectivePlan($user)->monthly_credit_allowance]);
 
         return CreditWallet::query()->where('user_id', $user->id)->lockForUpdate()->firstOrFail();
+    }
+
+    private function validatedAdjustmentReplay(CreditTransaction $transaction, int $amount, User $actor, string $description): CreditTransaction
+    {
+        if ($transaction->type !== 'adjustment'
+            || $transaction->amount !== $amount
+            || (int) $transaction->created_by !== $actor->id
+            || $transaction->description !== $description) {
+            throw new FeatureAccessException(
+                'credit_idempotency_conflict',
+                409,
+                __('platform.errors.credit_idempotency_conflict'),
+            );
+        }
+
+        return $transaction;
     }
 }

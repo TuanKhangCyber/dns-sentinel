@@ -1,6 +1,6 @@
 # KiemTraDNS — DNS Recon & Security Investigation
 
-Ứng dụng Laravel dùng để tra cứu DNS/RDAP, phân tích cấu hình bảo mật web và thực hiện các lần quét mạng **đã được cấp phép**. Project dùng Blade, JavaScript thuần, Tailwind CSS/Vite, Laravel Queue và mặc định hỗ trợ SQLite.
+Ứng dụng dùng để tra cứu DNS/RDAP, phân tích cấu hình bảo mật web và thực hiện các lần quét mạng **đã được cấp phép**. Project dùng Blade, JavaScript thuần, Tailwind CSS/Vite, hàng đợi xử lý nền và mặc định hỗ trợ SQLite.
 
 > Chỉ quét hệ thống bạn sở hữu hoặc được cấp phép rõ ràng. Scanner dùng allowlist fail-closed: khi `SCANNER_ALLOWLIST` rỗng, mọi lần quét Nmap/Nessus đều bị từ chối.
 
@@ -98,9 +98,10 @@ RECAPTCHA_REGISTER_ENABLED=true
 RECAPTCHA_LOGIN_ENABLED=true
 RECAPTCHA_LOGIN_ALWAYS_VISIBLE=true
 RECAPTCHA_LOGIN_FAILURE_THRESHOLD=2
+RECAPTCHA_CLOCK_SKEW_SECONDS=5
 ```
 
-Chỉ bật reCAPTCHA trong admin sau khi cả site key và secret đã được cấu hình. `RECAPTCHA_MIN_SCORE` chỉ áp dụng khi dùng key v3 và đặt `RECAPTCHA_TYPE=score`; có thể đặt `RECAPTCHA_LOGIN_ALWAYS_VISIBLE=false` để quay lại cơ chế challenge sau ngưỡng đăng nhập sai. Sau khi đổi `.env`, chạy `php artisan optimize:clear`. Automated tests fake Google HTTP và không cần key thật.
+Chỉ bật reCAPTCHA trong admin sau khi cả site key và secret đã được cấu hình. `RECAPTCHA_MIN_SCORE` chỉ áp dụng khi dùng key v3 và đặt `RECAPTCHA_TYPE=score`; có thể đặt `RECAPTCHA_LOGIN_ALWAYS_VISIBLE=false` để quay lại cơ chế challenge sau ngưỡng đăng nhập sai. `RECAPTCHA_CLOCK_SKEW_SECONDS` chỉ cho phép một sai lệch nhỏ về tương lai giữa đồng hồ Google và server (bị giới hạn tối đa 30 giây); nó không kéo dài giới hạn tuổi token. Sau khi đổi `.env`, chạy `php artisan optimize:clear`. Automated tests fake Google HTTP và không cần key thật.
 
 ## DNS Recon
 
@@ -116,7 +117,7 @@ Không ghép target người dùng vào shell command. Tab Nmap cũ trong DNS Re
 ## Bật Nmap scanner
 
 1. Cài Nmap trên scanner worker và kiểm tra `nmap --version`.
-2. Chạy worker bằng tài khoản hệ thống ít quyền, không chạy Laravel web process bằng root/Administrator.
+2. Chạy worker bằng tài khoản hệ thống ít quyền, không chạy tiến trình web bằng root/Administrator.
 3. Khai báo executable và allowlist target đã được cấp phép:
 
 ```dotenv

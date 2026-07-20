@@ -10,7 +10,7 @@ class EnsureActiveUser
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->user()?->isSuspended()) {
+        if (! $request->user()?->isActive()) {
             return $request->expectsJson()
                 ? response()->json(['success' => false, 'error_code' => 'account_suspended', 'error' => __('platform.errors.account_suspended')], 403)
                 : abort(403, __('platform.errors.account_suspended'));

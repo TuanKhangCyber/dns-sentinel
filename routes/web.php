@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\ContentController as AdminContentController;
+use App\Http\Controllers\Admin\CreditController as AdminCreditController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FeatureController as AdminFeatureController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
@@ -9,6 +11,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\DnsController;
+use App\Http\Controllers\LoginHistoryController;
 use App\Http\Controllers\MembershipController;
 use App\Http\Controllers\PreferenceController;
 use App\Http\Controllers\ReconController;
@@ -63,6 +66,7 @@ Route::middleware(['auth', 'active-user'])->group(function () {
     Route::get('/membership', [MembershipController::class, 'index'])->name('membership.index');
     Route::post('/membership/request-upgrade', [MembershipController::class, 'requestUpgrade'])->name('membership.request-upgrade');
     Route::get('/credits', [MembershipController::class, 'credits'])->name('credits.index');
+    Route::get('/login-history', [LoginHistoryController::class, 'index'])->name('login-history.index');
 
     Route::prefix('admin')->name('admin.')->middleware('admin')->group(function () {
         Route::get('/', AdminDashboardController::class)->name('dashboard');
@@ -70,6 +74,7 @@ Route::middleware(['auth', 'active-user'])->group(function () {
         Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('users.update');
         Route::post('/users/{user}/credits', [AdminUserController::class, 'adjustCredits'])->name('users.credits');
+        Route::get('/credits', [AdminCreditController::class, 'index'])->name('credits.index');
         Route::get('/plans', [AdminPlanController::class, 'index'])->name('plans.index');
         Route::put('/plans/{plan}', [AdminPlanController::class, 'update'])->name('plans.update');
         Route::get('/features', [AdminFeatureController::class, 'index'])->name('features.index');
@@ -82,5 +87,6 @@ Route::middleware(['auth', 'active-user'])->group(function () {
         Route::delete('/faqs/{faq}', [AdminContentController::class, 'destroyFaq'])->name('faqs.destroy');
         Route::get('/settings', [AdminSettingController::class, 'index'])->name('settings.index');
         Route::put('/settings', [AdminSettingController::class, 'update'])->name('settings.update');
+        Route::get('/audit-logs', [AdminAuditLogController::class, 'index'])->name('audit.index');
     });
 });

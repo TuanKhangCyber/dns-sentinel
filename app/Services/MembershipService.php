@@ -18,7 +18,7 @@ class MembershipService
                 ?? Plan::query()->where('code', 'free')->where('is_active', true)->firstOrFail();
             $user->update([
                 'plan_id' => $plan->id, 'membership_status' => 'active',
-                'membership_started_at' => now(), 'membership_expires_at' => null,
+                'membership_started_at' => now(), 'membership_expires_at' => null, 'status' => 'active',
             ]);
             $wallet = $user->wallet()->firstOrCreate([], ['balance' => 0]);
             $credits = max(0, (int) app(SystemSettingService::class)->get('default_signup_credits', config('features.signup_credits', 10)));

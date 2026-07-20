@@ -124,7 +124,7 @@ class FrontendQualityMatrixTest extends TestCase
             '.platform-shell',
             '.platform-card',
             '.pricing-grid',
-            '.admin-layout',
+            '.admin-shell',
             '.sr-only',
             ':focus-visible',
             '@media (max-width: 1180px)',

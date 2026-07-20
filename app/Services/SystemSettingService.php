@@ -22,14 +22,23 @@ class SystemSettingService
         };
     }
 
-    public function set(string $key, mixed $value, string $type, bool $public, ?int $actorId): SystemSetting
+    public function set(string $key, mixed $value, string $type, bool $public, ?int $actorId, bool $invalidateCache = true): SystemSetting
     {
         $setting = SystemSetting::updateOrCreate(['key' => $key], [
             'value' => $type === 'boolean' ? ($value ? '1' : '0') : (string) $value,
             'type' => $type, 'is_public' => $public, 'updated_by' => $actorId,
         ]);
-        Cache::forget('setting:'.$key);
+        if ($invalidateCache) {
+            Cache::forget('setting:'.$key);
+        }
 
         return $setting;
+    }
+
+    public function forgetMany(array $keys): void
+    {
+        foreach ($keys as $key) {
+            Cache::forget('setting:'.$key);
+        }
     }
 }

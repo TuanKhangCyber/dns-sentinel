@@ -9,6 +9,22 @@ use Illuminate\Http\Request;
 
 class AuditService
 {
+    private const SENSITIVE_KEYS = [
+        'password',
+        'password_confirmation',
+        'token',
+        'secret',
+        'secret_key',
+        'api_key',
+        'access_key',
+        'private_key',
+        'remember_token',
+        'g-recaptcha-response',
+        'recaptcha_response',
+        'authorization',
+        'cookie',
+    ];
+
     public function record(?User $actor, string $action, Model|string|null $target, array $before = [], array $after = [], ?Request $request = null): AuditLog
     {
         $targetType = $target instanceof Model ? $target::class : (is_string($target) ? $target : null);
@@ -16,19 +32,19 @@ class AuditService
 
         return AuditLog::create([
             'actor_id' => $actor?->id, 'action' => $action, 'target_type' => $targetType, 'target_id' => $targetId,
-            'before' => $this->filter($before), 'after' => $this->filter($after),
+            'before' => $this->sanitize($before), 'after' => $this->sanitize($after),
             'ip_address' => $request?->ip(), 'user_agent' => mb_substr((string) $request?->userAgent(), 0, 500),
         ]);
     }
 
-    private function filter(array $values): array
+    public function sanitize(array $values): array
     {
-        $blocked = ['password', 'password_confirmation', 'token', 'secret', 'secret_key', 'api_key', 'remember_token'];
         foreach ($values as $key => $value) {
-            if (collect($blocked)->contains(fn ($blockedKey) => str_contains(strtolower((string) $key), $blockedKey))) {
+            $normalizedKey = str_replace(['-', '.', ' '], '_', strtolower((string) $key));
+            if (collect(self::SENSITIVE_KEYS)->contains(fn ($blockedKey) => str_contains($normalizedKey, $blockedKey))) {
                 unset($values[$key]);
             } elseif (is_array($value)) {
-                $values[$key] = $this->filter($value);
+                $values[$key] = $this->sanitize($value);
             }
         }
 

@@ -13,6 +13,16 @@ use Throwable;
 
 class RecaptchaService
 {
+    private const GOOGLE_ERROR_CODES = [
+        'missing-input-secret',
+        'invalid-input-secret',
+        'missing-input-response',
+        'invalid-input-response',
+        'bad-request',
+        'timeout-or-duplicate',
+        'browser-error',
+    ];
+
     public function __construct(private readonly SystemSettingService $settings) {}
 
     public function enabledFor(string $action): bool
@@ -26,7 +36,8 @@ class RecaptchaService
 
     public function configured(): bool
     {
-        return filled(config('recaptcha.site_key')) && filled(config('recaptcha.secret_key'));
+        return trim((string) config('recaptcha.site_key')) !== ''
+            && trim((string) config('recaptcha.secret_key')) !== '';
     }
 
     public function loginRequired(string $throttleKey): bool
@@ -34,7 +45,7 @@ class RecaptchaService
         if (! $this->enabledFor('login')) {
             return false;
         }
-        if ((bool) config('recaptcha.login_always_visible', true)) {
+        if ((bool) $this->settings->get('recaptcha_login_always_visible', config('recaptcha.login_always_visible', true))) {
             return true;
         }
 
@@ -51,7 +62,7 @@ class RecaptchaService
         if (! $this->configured()) {
             throw new RecaptchaException('recaptcha_unavailable');
         }
-        $token = $request->string('g-recaptcha-response')->toString();
+        $token = $request->string('g-recaptcha-response')->trim()->toString();
         if ($token === '') {
             throw new RecaptchaException('recaptcha_required');
         }
@@ -70,36 +81,57 @@ class RecaptchaService
             throw new RecaptchaException('recaptcha_unavailable');
         }
 
-        if (! is_array($payload) || ($payload['success'] ?? false) !== true) {
-            throw new RecaptchaException;
+        if (! $response->successful()) {
+            $this->reject($action, 'http_error', 'recaptcha_unavailable', ['http_status' => $response->status()]);
+        }
+        if (! is_array($payload)) {
+            $this->reject($action, 'invalid_json', 'recaptcha_unavailable');
+        }
+        if (($payload['success'] ?? false) !== true) {
+            $codes = $this->googleErrorCodes($payload['error-codes'] ?? []);
+            $errorCode = match (true) {
+                in_array('missing-input-secret', $codes, true), in_array('invalid-input-secret', $codes, true) => 'recaptcha_unavailable',
+                in_array('timeout-or-duplicate', $codes, true) => 'recaptcha_expired',
+                default => 'recaptcha_failed',
+            };
+            $this->reject($action, 'google_rejected', $errorCode, ['google_error_codes' => $codes]);
         }
         if ($this->type() === 'score') {
             if (! hash_equals($action, (string) ($payload['action'] ?? ''))) {
-                throw new RecaptchaException;
+                $this->reject($action, 'action_mismatch');
             }
-            $minimum = (float) $this->settings->get('recaptcha_min_score', config('recaptcha.minimum_score', 0.5));
-            if (! isset($payload['score']) || ! is_numeric($payload['score']) || (float) $payload['score'] < $minimum) {
-                throw new RecaptchaException;
+            $minimum = min(1, max(0.1, (float) $this->settings->get('recaptcha_min_score', config('recaptcha.minimum_score', 0.5))));
+            $score = $payload['score'] ?? null;
+            if (! is_numeric($score) || (float) $score < 0 || (float) $score > 1 || (float) $score < $minimum) {
+                $this->reject($action, 'score_rejected');
             }
         }
         $hostname = trim((string) config('recaptcha.expected_hostname', ''));
         if ($hostname !== '' && ! hash_equals(strtolower($hostname), strtolower((string) ($payload['hostname'] ?? '')))) {
-            throw new RecaptchaException;
+            $this->reject($action, 'hostname_mismatch');
         }
         if (! isset($payload['challenge_ts'])) {
-            throw new RecaptchaException;
+            $this->reject($action, 'challenge_timestamp_missing', 'recaptcha_unavailable');
         }
         try {
             $age = Carbon::parse($payload['challenge_ts'])->diffInSeconds(now(), false);
         } catch (Throwable) {
-            throw new RecaptchaException;
+            $this->reject($action, 'challenge_timestamp_invalid', 'recaptcha_unavailable');
         }
-        if ($age < 0 || $age > (int) config('recaptcha.token_max_age_seconds', 120)) {
-            throw new RecaptchaException;
+        $maximumAge = max(1, (int) config('recaptcha.token_max_age_seconds', 120));
+        $clockSkew = min(30, max(0, (int) config('recaptcha.clock_skew_seconds', 5)));
+        if ($age < -$clockSkew || $age > $maximumAge) {
+            $this->reject($action, 'challenge_expired', 'recaptcha_expired');
         }
         $replayKey = 'recaptcha:used:'.hash('sha256', $action.'|'.$token);
-        if (! Cache::add($replayKey, true, now()->addSeconds((int) config('recaptcha.token_max_age_seconds', 120)))) {
-            throw new RecaptchaException;
+        try {
+            $accepted = Cache::add($replayKey, true, now()->addSeconds($maximumAge));
+        } catch (Throwable $exception) {
+            Log::warning('reCAPTCHA replay protection unavailable.', ['exception' => $exception::class, 'action' => $action]);
+            throw new RecaptchaException('recaptcha_unavailable');
+        }
+        if (! $accepted) {
+            $this->reject($action, 'token_replayed', 'recaptcha_expired');
         }
     }
 
@@ -116,6 +148,27 @@ class RecaptchaService
 
     private function type(): string
     {
-        return config('recaptcha.type') === 'score' ? 'score' : 'checkbox';
+        return strtolower(trim((string) $this->settings->get('recaptcha_type', config('recaptcha.type')))) === 'score' ? 'score' : 'checkbox';
+    }
+
+    private function googleErrorCodes(mixed $codes): array
+    {
+        if (! is_array($codes)) {
+            return [];
+        }
+
+        return array_values(array_intersect(self::GOOGLE_ERROR_CODES, array_map('strval', $codes)));
+    }
+
+    private function reject(string $action, string $reason, string $errorCode = 'recaptcha_failed', array $context = []): never
+    {
+        Log::notice('reCAPTCHA verification rejected.', [
+            'action' => $action,
+            'type' => $this->type(),
+            'reason' => $reason,
+            ...$context,
+        ]);
+
+        throw new RecaptchaException($errorCode);
     }
 }

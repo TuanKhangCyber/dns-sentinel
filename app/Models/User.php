@@ -83,9 +83,19 @@ class User extends Authenticatable
         return $this->hasMany(CreditTransaction::class);
     }
 
+    public function loginHistories(): HasMany
+    {
+        return $this->hasMany(LoginHistory::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
     }
 
     public function isSuspended(): bool

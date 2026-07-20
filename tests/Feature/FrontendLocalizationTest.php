@@ -15,6 +15,8 @@ class FrontendLocalizationTest extends TestCase
         $this->withSession(['locale' => 'vi'])->get('/login')->assertOk()
             ->assertSee('lang="vi"', false)
             ->assertSee(__('ui.login'))
+            ->assertSee('images/dns-logo.jpg', false)
+            ->assertSee('data-current-datetime', false)
             ->assertSee('aria-label="'.__('ui.theme').'"', false);
 
         $this->withSession(['locale' => 'vi'])->get('/faq')->assertOk()
@@ -27,7 +29,7 @@ class FrontendLocalizationTest extends TestCase
     {
         $this->withSession(['locale' => 'en'])->get('/register')->assertOk()
             ->assertSee('lang="en"', false)
-            ->assertSee('Create an account to start investigating DNS.')
+            ->assertSee('Create an account to get started.')
             ->assertSee('Dark mode');
 
         $this->withSession(['locale' => 'en'])->get('/about')->assertOk()
@@ -41,6 +43,7 @@ class FrontendLocalizationTest extends TestCase
 
         $this->actingAs($user)->withSession(['locale' => 'vi'])->get('/dns')->assertOk()
             ->assertSee(__('ui.security_operations'))
+            ->assertSee(__('ui.login_history'))
             ->assertSee('aria-label="'.__('ui.security_results').'"', false)
             ->assertSee('aria-label="'.__('ui.filter_subdomains').'"', false);
 

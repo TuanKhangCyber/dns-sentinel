@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\RecaptchaException;
 use App\Models\User;
+use App\Services\LoginHistoryService;
 use App\Services\MembershipService;
 use App\Services\RecaptchaService;
 use App\Services\SystemSettingService;
@@ -19,6 +20,7 @@ class AuthController extends Controller
         private readonly RecaptchaService $recaptcha,
         private readonly MembershipService $memberships,
         private readonly SystemSettingService $settings,
+        private readonly LoginHistoryService $loginHistory,
     ) {}
 
     public function showLogin(Request $request): View
@@ -66,12 +68,13 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
-        if ($request->user()->isSuspended()) {
+        if (! $request->user()->isActive()) {
             Auth::logout();
 
             return back()->withErrors(['email' => __('platform.errors.account_suspended')])->onlyInput('email');
         }
         $request->session()->regenerate();
+        $this->loginHistory->recordLogin($request->user(), $request);
 
         return redirect()->intended('/dns');
     }
@@ -103,12 +106,14 @@ class AuthController extends Controller
         $this->memberships->provision($user);
         Auth::login($user);
         $request->session()->regenerate();
+        $this->loginHistory->recordLogin($user, $request);
 
         return redirect('/dns');
     }
 
     public function logout(Request $request): RedirectResponse
     {
+        $this->loginHistory->recordLogout($request->user(), $request);
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

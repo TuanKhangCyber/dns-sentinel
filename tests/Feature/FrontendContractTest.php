@@ -86,6 +86,70 @@ class FrontendContractTest extends TestCase
         $this->assertUniqueIds($response->getContent());
     }
 
+    public function test_admin_console_pages_share_accessible_navigation_and_unique_ids(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $managedUser = User::factory()->create();
+        $paths = [
+            route('admin.dashboard'),
+            route('admin.users.index'),
+            route('admin.users.show', $managedUser),
+            route('admin.plans.index'),
+            route('admin.features.index'),
+            route('admin.credits.index'),
+            route('admin.content.index'),
+            route('admin.settings.index'),
+            route('admin.audit.index'),
+        ];
+
+        foreach (['vi', 'en'] as $locale) {
+            foreach ($paths as $path) {
+                $response = $this->actingAs($admin)->withSession(['locale' => $locale])->get($path)->assertOk()
+                    ->assertSee('data-admin-shell', false)
+                    ->assertSee('aria-label=', false)
+                    ->assertDontSee('onclick=', false);
+                $html = $response->getContent();
+                $this->assertUniqueIds($html);
+                preg_match('/<aside\b[^>]*data-admin-sidebar[^>]*>(.*?)<\/aside>/s', $html, $sidebar);
+                $this->assertNotEmpty($sidebar[1] ?? null, "Admin sidebar is missing for {$path} ({$locale}).");
+                $this->assertSame(1, substr_count($sidebar[1], 'aria-current="page"'), "Admin navigation active state is ambiguous for {$path} ({$locale}).");
+            }
+        }
+    }
+
+    public function test_sensitive_admin_user_changes_require_the_shared_confirmation_dialog(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $managedUser = User::factory()->create();
+
+        $this->actingAs($admin)->get(route('admin.users.show', $managedUser))
+            ->assertOk()
+            ->assertSee('data-confirm-dialog', false)
+            ->assertSee('data-confirm-title', false)
+            ->assertSee('data-confirm="'.e(__('platform.confirm_user_update')).'"', false)
+            ->assertDontSee('onclick=', false);
+    }
+
+    public function test_plan_validation_old_input_is_scoped_to_the_submitted_card(): void
+    {
+        $admin = User::factory()->admin()->free()->create();
+        $free = Plan::where('code', 'free')->firstOrFail();
+        $plus = Plan::where('code', 'plus')->firstOrFail();
+
+        $this->actingAs($admin)->put(route('admin.plans.update', $free), [
+            'plan_id' => $free->id,
+            'name' => 'Edited Free Name',
+            'description' => $free->description,
+            'monthly_credit_allowance' => -1,
+            'history_retention_days' => $free->history_retention_days,
+            'is_active' => 1,
+        ])->assertSessionHasErrors('monthly_credit_allowance');
+
+        $html = $this->get(route('admin.plans.index'))->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, 'value="Edited Free Name"'));
+        $this->assertStringContainsString('value="'.e($plus->name).'"', $html);
+    }
+
     public function test_scan_exports_render_available_locked_and_hidden_states_without_fake_urls(): void
     {
         $user = User::factory()->create();

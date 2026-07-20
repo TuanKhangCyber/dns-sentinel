@@ -1,8 +1,18 @@
 @if($recaptcha['enabled'])
     @if($recaptcha['configured'])
         @if($recaptcha['type'] === 'checkbox')
-            <div class="recaptcha-widget" aria-label="{{ __('platform.recaptcha_notice') }}">
-                <div class="g-recaptcha" data-sitekey="{{ $recaptcha['site_key'] }}" data-theme="dark"></div>
+            <div class="recaptcha-block">
+                <div class="recaptcha-widget" aria-label="{{ __('platform.recaptcha_notice') }}">
+                    <div class="g-recaptcha"
+                         data-sitekey="{{ $recaptcha['site_key'] }}"
+                         data-theme="dark"
+                         data-callback="recaptchaCheckboxVerified"
+                         data-expired-callback="recaptchaCheckboxExpired"
+                         data-error-callback="recaptchaCheckboxError"></div>
+                </div>
+                <p class="form-hint recaptcha-status" data-recaptcha-status data-state="pending" role="status" aria-live="polite">
+                    {{ __('platform.recaptcha_checkbox_prompt') }}
+                </p>
             </div>
             @once
                 <script src="https://www.google.com/recaptcha/api.js?hl={{ app()->getLocale() }}" async defer></script>

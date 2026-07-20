@@ -9,6 +9,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Mockery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -21,6 +23,7 @@ class RecaptchaServiceTest extends TestCase
         parent::setUp();
         Cache::flush();
         config()->set('recaptcha.type', 'score');
+        config()->set('recaptcha.clock_skew_seconds', 5);
         config()->set('recaptcha.site_key', 'public-site-key');
         config()->set('recaptcha.secret_key', 'private-secret-key');
         SystemSetting::where('key', 'recaptcha_enabled')->update(['value' => '1']);
@@ -41,12 +44,75 @@ class RecaptchaServiceTest extends TestCase
         Http::fake(['*' => Http::response([
             'success' => true,
             'hostname' => 'localhost',
-            'challenge_ts' => now()->toIso8601String(),
+            'challenge_ts' => now()->addMilliseconds(500)->toIso8601String(),
         ], 200)]);
 
         app(RecaptchaService::class)->verify($this->requestWithToken('checkbox-token'), 'register');
 
         Http::assertSent(fn ($request) => $request['response'] === 'checkbox-token');
+    }
+
+    public function test_timestamp_beyond_clock_skew_is_rejected_as_expired(): void
+    {
+        config()->set('recaptcha.type', 'checkbox');
+        Http::fake(['*' => Http::response([
+            'success' => true,
+            'hostname' => 'localhost',
+            'challenge_ts' => now()->addSeconds(6)->toIso8601String(),
+        ], 200)]);
+
+        $this->assertRecaptchaError('recaptcha_expired', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('future-token'), 'register'));
+    }
+
+    public function test_google_timeout_or_duplicate_is_reported_as_expired(): void
+    {
+        Http::fake(['*' => Http::response(['success' => false, 'error-codes' => ['timeout-or-duplicate']], 200)]);
+
+        $this->assertRecaptchaError('recaptcha_expired', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('expired-token'), 'register'));
+    }
+
+    public function test_google_secret_error_and_http_failure_are_reported_as_unavailable(): void
+    {
+        Http::fake(['*' => Http::response(['success' => false, 'error-codes' => ['invalid-input-secret']], 200)]);
+        $this->assertRecaptchaError('recaptcha_unavailable', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('configuration-token'), 'register'));
+
+        Http::fake(['*' => Http::response('Unavailable', 503)]);
+        $this->assertRecaptchaError('recaptcha_unavailable', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('http-token'), 'register'));
+    }
+
+    public function test_rejection_log_does_not_contain_secret_or_token(): void
+    {
+        Log::spy();
+        Http::fake(['*' => Http::response([
+            'success' => false,
+            'error-codes' => ['invalid-input-secret'],
+        ], 200)]);
+
+        $this->assertRecaptchaError('recaptcha_unavailable', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('sensitive-response-token'), 'register'));
+
+        Log::shouldHaveReceived('notice')->once()->with(
+            'reCAPTCHA verification rejected.',
+            Mockery::on(function (array $context): bool {
+                $encoded = json_encode($context);
+
+                return is_string($encoded)
+                    && ! str_contains($encoded, 'private-secret-key')
+                    && ! str_contains($encoded, 'sensitive-response-token');
+            }),
+        );
+    }
+
+    public function test_v3_score_outside_google_range_is_rejected(): void
+    {
+        Http::fake(['*' => Http::response([...$this->validPayload(), 'score' => 1.1], 200)]);
+
+        $this->assertRecaptchaError('recaptcha_failed', fn () => app(RecaptchaService::class)
+            ->verify($this->requestWithToken('invalid-score-token'), 'register'));
     }
 
     #[DataProvider('invalidPayloads')]
@@ -100,8 +166,7 @@ class RecaptchaServiceTest extends TestCase
         Http::fake(['*' => Http::response($this->validPayload(), 200)]);
         $request = $this->requestWithToken('same-token');
         app(RecaptchaService::class)->verify($request, 'register');
-        $this->expectException(RecaptchaException::class);
-        app(RecaptchaService::class)->verify($request, 'register');
+        $this->assertRecaptchaError('recaptcha_expired', fn () => app(RecaptchaService::class)->verify($request, 'register'));
     }
 
     private function validPayload(): array
@@ -112,5 +177,15 @@ class RecaptchaServiceTest extends TestCase
     private function requestWithToken(string $token): Request
     {
         return Request::create('/register', 'POST', ['g-recaptcha-response' => $token], [], [], ['REMOTE_ADDR' => '127.0.0.1']);
+    }
+
+    private function assertRecaptchaError(string $errorCode, callable $callback): void
+    {
+        try {
+            $callback();
+            $this->fail("Expected reCAPTCHA error [{$errorCode}].");
+        } catch (RecaptchaException $exception) {
+            $this->assertSame($errorCode, $exception->errorCode);
+        }
     }
 }

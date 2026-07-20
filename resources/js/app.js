@@ -26,17 +26,46 @@ function applyTheme(theme) {
     });
 }
 
+const setRecaptchaStatus = (form, message, state) => {
+    const status = form.querySelector('[data-recaptcha-status]');
+    if (!status) return;
+    status.textContent = message;
+    status.dataset.state = state;
+};
+
+const recaptchaCheckboxForms = [...document.querySelectorAll('[data-recaptcha-checkbox-form]')];
+
+window.recaptchaCheckboxVerified = () => {
+    recaptchaCheckboxForms.forEach(form => setRecaptchaStatus(form, form.dataset.recaptchaVerifiedMessage, 'verified'));
+};
+
+window.recaptchaCheckboxExpired = () => {
+    recaptchaCheckboxForms.forEach(form => setRecaptchaStatus(form, form.dataset.recaptchaExpiredMessage, 'error'));
+};
+
+window.recaptchaCheckboxError = () => {
+    recaptchaCheckboxForms.forEach(form => setRecaptchaStatus(form, form.dataset.recaptchaErrorMessage, 'error'));
+};
+
+recaptchaCheckboxForms.forEach(form => {
+    form.addEventListener('submit', event => {
+        const token = form.querySelector('[name="g-recaptcha-response"]')?.value?.trim();
+        if (token) return;
+        event.preventDefault();
+        setRecaptchaStatus(form, form.dataset.recaptchaRequiredMessage, 'error');
+    });
+});
+
 document.querySelectorAll('[data-recaptcha-form]').forEach(form => {
     let submitting = false;
     form.addEventListener('submit', async event => {
         if (submitting) return;
         event.preventDefault();
-        const button = form.querySelector('button[type="submit"]');
-        const status = form.querySelector('[data-recaptcha-status]');
+        const button = form.querySelector('button[type="submit"], button:not([type]), input[type="submit"]');
         const tokenInput = form.querySelector('input[name="g-recaptcha-response"]');
         const siteKey = form.dataset.recaptchaSiteKey;
         if (!button || !tokenInput || !siteKey || !window.grecaptcha) {
-            if (status) status.textContent = document.documentElement.lang === 'vi' ? 'Không thể tải xác minh chống bot.' : 'Anti-bot verification could not be loaded.';
+            setRecaptchaStatus(form, form.dataset.recaptchaErrorMessage, 'error');
             return;
         }
         button.disabled = true;
@@ -47,13 +76,31 @@ document.querySelectorAll('[data-recaptcha-form]').forEach(form => {
             submitting = true;
             form.submit();
         } catch {
-            if (status) status.textContent = document.documentElement.lang === 'vi' ? 'Xác minh chống bot thất bại. Vui lòng thử lại.' : 'Anti-bot verification failed. Please retry.';
+            setRecaptchaStatus(form, form.dataset.recaptchaErrorMessage, 'error');
             button.disabled = false;
         }
     });
 });
 
 applyTheme(savedTheme || preferredTheme);
+
+const currentDateTimes = [...document.querySelectorAll('[data-current-datetime]')];
+if (currentDateTimes.length) {
+    const dateTimeFormatter = new Intl.DateTimeFormat(
+        document.documentElement.lang === 'vi' ? 'vi-VN' : 'en-GB',
+        {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'},
+    );
+    const updateCurrentDateTime = () => {
+        const current = new Date();
+        currentDateTimes.forEach((element) => {
+            element.dateTime = current.toISOString();
+            const label = element.querySelector('[data-current-datetime-label]');
+            if (label) label.textContent = dateTimeFormatter.format(current);
+        });
+        window.setTimeout(updateCurrentDateTime, 1000);
+    };
+    updateCurrentDateTime();
+}
 
 document.querySelectorAll('.theme-toggle').forEach((button) => {
     button.addEventListener('click', () => {
@@ -68,6 +115,8 @@ document.querySelectorAll('[data-auto-submit]').forEach((select) => {
 document.querySelectorAll('form[data-submit-lock]').forEach((form) => {
     let submitting = false;
     form.addEventListener('submit', (event) => {
+        if (event.defaultPrevented) return;
+        if (form.dataset.confirm && form.dataset.confirmed !== 'true') return;
         if (submitting) { event.preventDefault(); return; }
         if (!form.checkValidity()) return;
         submitting = true;
@@ -76,10 +125,101 @@ document.querySelectorAll('form[data-submit-lock]').forEach((form) => {
     });
 });
 
+const confirmationDialog = document.querySelector('[data-confirm-dialog]');
+let pendingConfirmationForm = null;
 document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (event) => {
-        if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+        if (form.dataset.confirmed === 'true') {
+            delete form.dataset.confirmed;
+            return;
+        }
+        event.preventDefault();
+        if (!confirmationDialog?.showModal) {
+            if (window.confirm(form.dataset.confirm)) {
+                form.dataset.confirmed = 'true';
+                form.requestSubmit();
+            }
+            return;
+        }
+        pendingConfirmationForm = form;
+        const title = confirmationDialog.querySelector('[data-confirm-title]');
+        const message = confirmationDialog.querySelector('[data-confirm-message]');
+        if (title) title.textContent = form.dataset.confirmTitle || title.dataset.defaultText || title.textContent;
+        if (message) message.textContent = form.dataset.confirm;
+        confirmationDialog.showModal();
+        confirmationDialog.querySelector('[data-confirm-cancel]')?.focus();
     });
+});
+
+confirmationDialog?.querySelector('[data-confirm-accept]')?.addEventListener('click', () => {
+    if (!pendingConfirmationForm) return;
+    const form = pendingConfirmationForm;
+    pendingConfirmationForm = null;
+    form.dataset.confirmed = 'true';
+    window.setTimeout(() => form.requestSubmit(), 0);
+});
+confirmationDialog?.addEventListener('close', () => { pendingConfirmationForm = null; });
+
+const adminShell = document.querySelector('[data-admin-shell]');
+if (adminShell) {
+    const sidebar = adminShell.querySelector('[data-admin-sidebar]');
+    const toggle = adminShell.querySelector('[data-admin-sidebar-toggle]');
+    const backdrop = adminShell.querySelector('.admin-sidebar-backdrop');
+    const mobileSidebar = window.matchMedia('(max-width: 1180px)');
+    const closeButton = sidebar?.querySelector('[data-admin-sidebar-close]');
+    const setSidebarOpen = (open, restoreFocus = true) => {
+        const isDrawer = mobileSidebar.matches;
+        const drawerOpen = isDrawer && open;
+        sidebar?.toggleAttribute('data-open', open);
+        toggle?.setAttribute('aria-expanded', String(drawerOpen));
+        if (sidebar) {
+            sidebar.inert = isDrawer && !drawerOpen;
+            if (sidebar.inert) sidebar.setAttribute('aria-hidden', 'true');
+            else sidebar.removeAttribute('aria-hidden');
+        }
+        if (backdrop) backdrop.hidden = !drawerOpen;
+        document.body.classList.toggle('admin-drawer-open', drawerOpen);
+        if (drawerOpen) closeButton?.focus();
+        else if (restoreFocus && isDrawer) toggle?.focus();
+    };
+    toggle?.addEventListener('click', () => setSidebarOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+    adminShell.querySelectorAll('[data-admin-sidebar-close]').forEach(button => button.addEventListener('click', () => setSidebarOpen(false)));
+    document.addEventListener('keydown', event => {
+        if (toggle?.getAttribute('aria-expanded') !== 'true') return;
+        if (event.key === 'Escape') {
+            setSidebarOpen(false);
+            return;
+        }
+        if (event.key !== 'Tab' || !sidebar) return;
+        const focusable = [...sidebar.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+            .filter(element => !element.hidden && element.getClientRects().length > 0);
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
+    mobileSidebar.addEventListener('change', () => setSidebarOpen(false, false));
+    setSidebarOpen(false, false);
+}
+
+document.querySelectorAll('[data-credit-adjustment]').forEach((form) => {
+    const input = form.querySelector('input[name="amount"]');
+    const preview = form.querySelector('[data-credit-preview]');
+    const current = Number(form.dataset.currentBalance || 0);
+    const updatePreview = () => {
+        if (!preview) return;
+        const next = current + Number(input?.value || 0);
+        preview.textContent = new Intl.NumberFormat(document.documentElement.lang === 'vi' ? 'vi-VN' : 'en-GB').format(next);
+        preview.classList.toggle('credit-negative', next < 0);
+    };
+    input?.addEventListener('input', updatePreview);
+    updatePreview();
 });
 
 document.querySelectorAll('[data-navigation-toggle]').forEach((toggle) => {

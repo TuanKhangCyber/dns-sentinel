@@ -10,7 +10,7 @@
 @endphp
 <header class="app-header">
     <a class="app-brand" href="{{ $currentUser ? route('dns.index') : route('about') }}">
-        <span class="app-brand-mark" aria-hidden="true">KD</span>
+        <span class="logo-frame logo-frame--nav"><img src="{{ asset('images/dns-logo.jpg') }}" alt=""></span>
         <span>{{ app(\App\Services\SystemSettingService::class)->get('site_name', config('app.name')) }}</span>
     </a>
     <button class="navigation-toggle button-secondary" type="button" data-navigation-toggle aria-controls="{{ $navigationId }}" aria-expanded="false">
@@ -29,12 +29,14 @@
                 @endif
                 <a href="{{ route('membership.index') }}" @if(request()->routeIs('membership.*')) aria-current="page" @endif>{{ __('platform.membership') }}</a>
                 <a href="{{ route('credits.index') }}" @if(request()->routeIs('credits.*')) aria-current="page" @endif>{{ __('platform.credits') }}</a>
+                <a href="{{ route('login-history.index') }}" @if(request()->routeIs('login-history.*')) aria-current="page" @endif><x-icon name="history" /> {{ __('ui.login_history') }}</a>
             @endauth
             <a href="{{ route('about') }}" @if(request()->routeIs('about')) aria-current="page" @endif>{{ __('platform.about') }}</a>
             <a href="{{ route('faq') }}" @if(request()->routeIs('faq')) aria-current="page" @endif>FAQ</a>
             @if($currentUser?->isAdmin())<a href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.*')) aria-current="page" @endif>{{ __('platform.admin') }}</a>@endif
         </nav>
         <div class="app-account">
+            @include('partials.current-datetime')
             @auth
                 <div class="account-summary" aria-label="{{ __('platform.membership') }}">
                     <strong>{{ $currentUser->name }}</strong>
@@ -42,7 +44,7 @@
                 </div>
             @endauth
             @include('partials.preferences', ['placement' => $placement])
-            @auth<form method="POST" action="{{ route('logout') }}">@csrf<button class="button-secondary">{{ __('ui.logout') }}</button></form>@endauth
+            @auth<form method="POST" action="{{ route('logout') }}">@csrf<button class="button-secondary"><x-icon name="logout" /> {{ __('ui.logout') }}</button></form>@endauth
         </div>
     </div>
 </header>

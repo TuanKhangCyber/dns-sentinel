@@ -51,6 +51,14 @@ class MembershipFeatureTest extends TestCase
         $this->actingAs($user)->post('/logout')->assertRedirect('/login');
     }
 
+    public function test_unknown_account_status_is_denied_fail_closed(): void
+    {
+        $user = User::factory()->create(['status' => 'legacy_disabled']);
+
+        $this->assertSame('account_suspended', app(FeatureAccessService::class)->status($user, 'dns_lookup')['reason']);
+        $this->actingAs($user)->get('/dns')->assertForbidden();
+    }
+
     public function test_hidden_feature_is_absent_and_visible_disabled_feature_is_locked(): void
     {
         $user = User::factory()->create();

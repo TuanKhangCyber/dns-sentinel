@@ -19,6 +19,7 @@ class RecaptchaAuthenticationTest extends TestCase
         Cache::flush();
         config()->set('recaptcha.type', 'checkbox');
         config()->set('recaptcha.login_always_visible', true);
+        config()->set('recaptcha.clock_skew_seconds', 5);
         config()->set('recaptcha.site_key', 'site-public');
         config()->set('recaptcha.secret_key', 'secret-private');
         foreach (['recaptcha_enabled', 'recaptcha_register_enabled', 'recaptcha_login_enabled'] as $key) {
@@ -47,6 +48,8 @@ class RecaptchaAuthenticationTest extends TestCase
             ->assertOk()
             ->assertSee('class="g-recaptcha"', false)
             ->assertSee('data-sitekey="site-public"', false)
+            ->assertSee('data-callback="recaptchaCheckboxVerified"', false)
+            ->assertSee('data-recaptcha-checkbox-form', false)
             ->assertSee('google.com/recaptcha/api.js?hl=', false);
 
         $this->post('/login', ['email' => $user->email, 'password' => 'password123'])->assertSessionHasErrors('recaptcha');
@@ -104,7 +107,7 @@ class RecaptchaAuthenticationTest extends TestCase
 
     private function payload(): array
     {
-        return ['success' => true, 'hostname' => 'localhost', 'challenge_ts' => now()->toIso8601String()];
+        return ['success' => true, 'hostname' => 'localhost', 'challenge_ts' => now()->addMilliseconds(500)->toIso8601String()];
     }
 
     private function scorePayload(string $action): array

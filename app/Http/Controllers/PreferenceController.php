@@ -11,17 +11,10 @@ class PreferenceController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'locale' => ['nullable', Rule::in(['vi', 'en'])],
-            'country' => ['nullable', Rule::in(['VN', 'US', 'GB', 'JP', 'KR', 'SG'])],
+            'locale' => ['required', Rule::in(['vi', 'en'])],
         ]);
 
-        if (isset($validated['locale'])) {
-            $request->session()->put('locale', $validated['locale']);
-        }
-
-        if (isset($validated['country'])) {
-            $request->session()->put('country', $validated['country']);
-        }
+        $request->session()->put('locale', $validated['locale']);
 
         return back();
     }

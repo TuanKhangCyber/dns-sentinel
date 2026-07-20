@@ -82,6 +82,18 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_login_rejects_an_account_with_an_unknown_non_active_status(): void
+    {
+        $user = User::factory()->create(['password' => 'password123', 'status' => 'legacy_disabled']);
+
+        $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'password123',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+    }
+
     public function test_login_is_rate_limited_after_repeated_failures(): void
     {
         config()->set('auth.login.max_attempts', 2);
@@ -108,26 +120,24 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_user_can_change_language_and_country(): void
+    public function test_user_can_change_language_without_storing_country(): void
     {
         $this->from('/login')->post('/preferences', [
             'locale' => 'en',
             'country' => 'JP',
         ])->assertRedirect('/login')
             ->assertSessionHas('locale', 'en')
-            ->assertSessionHas('country', 'JP');
+            ->assertSessionMissing('country');
 
         $this->get('/login')
             ->assertOk()
-            ->assertSee('Log in')
-            ->assertSee('Japan');
+            ->assertSee('Log in');
     }
 
     public function test_preferences_reject_unsupported_values(): void
     {
         $this->post('/preferences', [
             'locale' => 'xx',
-            'country' => 'INVALID',
-        ])->assertSessionHasErrors(['locale', 'country']);
+        ])->assertSessionHasErrors('locale');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class MakeUserAdmin extends Command
 {
@@ -14,20 +15,29 @@ class MakeUserAdmin extends Command
 
     public function handle(AuditService $audit): int
     {
-        $user = User::whereRaw('LOWER(email) = ?', [strtolower((string) $this->argument('email'))])->first();
+        $email = strtolower((string) $this->argument('email'));
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
         if (! $user) {
             $this->error('User not found.');
 
             return self::FAILURE;
         }
-        if ($user->isAdmin()) {
+        $promoted = DB::transaction(function () use ($email, $audit): bool {
+            $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->lockForUpdate()->firstOrFail();
+            if ($user->isAdmin()) {
+                return false;
+            }
+            $before = ['role' => $user->role];
+            $user->update(['role' => 'admin']);
+            $audit->record(null, 'user.role_changed_by_command', $user, $before, ['role' => 'admin']);
+
+            return true;
+        }, 3);
+        if (! $promoted) {
             $this->info('User is already an administrator.');
 
             return self::SUCCESS;
         }
-        $before = ['role' => $user->role];
-        $user->update(['role' => 'admin']);
-        $audit->record(null, 'user.role_changed_by_command', $user, $before, ['role' => 'admin']);
         $this->info('Administrator role granted to '.$user->email.'.');
 
         return self::SUCCESS;

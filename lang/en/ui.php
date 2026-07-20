@@ -2,9 +2,9 @@
 
 return [
     'login' => 'Log in',
-    'login_intro' => 'Log in to use the DNS investigation tool.',
+    'login_intro' => 'Log in to inspect DNS.',
     'register' => 'Register',
-    'register_intro' => 'Create an account to start investigating DNS.',
+    'register_intro' => 'Create an account to get started.',
     'email' => 'Email',
     'password' => 'Password',
     'password_confirmation' => 'Confirm password',
@@ -13,6 +13,14 @@ return [
     'no_account' => 'Do not have an account?',
     'has_account' => 'Already have an account?',
     'logout' => 'Log out',
+    'login_history' => 'Login history',
+    'login_history_intro' => 'Review recent sign-ins for your account.',
+    'account_activity' => 'Account activity',
+    'login_at' => 'Signed in at',
+    'logout_at' => 'Signed out at',
+    'device' => 'Device / browser',
+    'active_session' => 'Active',
+    'no_login_history' => 'No login history yet.',
     'hello' => 'Hello,',
     'language' => 'Language',
     'country' => 'Country',
@@ -165,8 +173,4 @@ return [
     'nmap_host_up' => 'Up',
     'nmap_host_down' => 'No response',
     'nmap_no_open_ports' => 'No open ports were detected within the scan scope.',
-    'countries' => [
-        'VN' => 'Vietnam', 'US' => 'United States', 'GB' => 'United Kingdom',
-        'JP' => 'Japan', 'KR' => 'South Korea', 'SG' => 'Singapore',
-    ],
 ];

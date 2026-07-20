@@ -15,5 +15,6 @@ return [
     'connect_timeout' => (int) env('RECAPTCHA_CONNECT_TIMEOUT_SECONDS', 3),
     'timeout' => (int) env('RECAPTCHA_TIMEOUT_SECONDS', 5),
     'token_max_age_seconds' => (int) env('RECAPTCHA_TOKEN_MAX_AGE_SECONDS', 120),
+    'clock_skew_seconds' => (int) env('RECAPTCHA_CLOCK_SKEW_SECONDS', 5),
     'verify_url' => 'https://www.google.com/recaptcha/api/siteverify',
 ];

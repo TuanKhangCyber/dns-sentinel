@@ -1,25 +1,25 @@
 @extends('admin.layout')
 @section('title', __('platform.settings'))
 @section('admin-content')
-<h1>{{ __('platform.settings') }}</h1>
-<form class="platform-card form-grid" method="POST" action="{{ route('admin.settings.update') }}">
+<x-admin.page-header :title="__('platform.settings')" :description="__('platform.settings_intro')" :eyebrow="__('platform.system_configuration')" />
+
+<form class="admin-settings-form" method="POST" action="{{ route('admin.settings.update') }}" data-confirm="{{ __('platform.confirm_settings_update') }}" data-confirm-title="{{ __('platform.settings') }}" data-submit-lock>
     @csrf @method('PUT')
-    <h2>{{ __('platform.general') }}</h2>
-    <label>{{ __('platform.site_name') }}<input name="site_name" value="{{ $settings['site_name'] ?? config('app.name') }}" required></label>
-    <label>{{ __('platform.maintenance_notice') }}<textarea name="maintenance_notice">{{ $settings['maintenance_notice'] ?? '' }}</textarea></label>
-    <label>{{ __('platform.default_plan') }}<select name="default_plan">@foreach($plans as $plan)<option value="{{ $plan->code }}" @selected(($settings['default_plan'] ?? 'free')===$plan->code)>{{ $plan->name }}</option>@endforeach</select></label>
-    <label>{{ __('platform.signup_credits') }}<input name="default_signup_credits" type="number" min="0" value="{{ $settings['default_signup_credits'] ?? 10 }}"></label>
-    <label>{{ __('platform.support_content') }}<textarea name="support_content">{{ $settings['support_content'] ?? '' }}</textarea></label>
-    <label class="checkbox-label"><input type="checkbox" name="registration_enabled" value="1" @checked(($settings['registration_enabled'] ?? '1')==='1')> {{ __('platform.registration_enabled') }}</label>
-    <h2>Google reCAPTCHA</h2>
-    <div class="alert {{ $recaptchaConfigured ? 'success' : '' }}">{{ $recaptchaConfigured ? __('platform.recaptcha_configured') : __('platform.recaptcha_not_configured') }}</div>
-    <label class="checkbox-label"><input type="checkbox" name="recaptcha_enabled" value="1" @checked(($settings['recaptcha_enabled'] ?? '0')==='1')> {{ __('platform.enabled') }}</label>
-    <label class="checkbox-label"><input type="checkbox" name="recaptcha_login_enabled" value="1" @checked(($settings['recaptcha_login_enabled'] ?? '1')==='1')> {{ __('platform.login_protection') }}</label>
-    <label class="checkbox-label"><input type="checkbox" name="recaptcha_register_enabled" value="1" @checked(($settings['recaptcha_register_enabled'] ?? '1')==='1')> {{ __('platform.register_protection') }}</label>
-    <label class="checkbox-label"><input type="checkbox" name="recaptcha_password_reset_enabled" value="1" @checked(($settings['recaptcha_password_reset_enabled'] ?? '1')==='1')> {{ __('platform.password_reset_protection') }}</label>
-    <label>{{ __('platform.minimum_score') }}<input type="number" step="0.1" min="0.1" max="1" name="recaptcha_min_score" value="{{ $settings['recaptcha_min_score'] ?? '0.5' }}"></label>
-    <label>{{ __('platform.login_failure_threshold') }}<input type="number" min="1" max="10" name="recaptcha_login_failure_threshold" value="{{ $settings['recaptcha_login_failure_threshold'] ?? 2 }}"></label>
-    <p class="form-hint">{{ __('platform.secret_env_only') }}</p>
-    <button>{{ __('platform.save') }}</button>
+    <section class="admin-panel admin-form">
+        <div class="admin-section-heading"><div><p class="eyebrow">{{ __('platform.identity') }}</p><h2>{{ __('platform.general') }}</h2></div></div>
+        <div class="form-section-grid"><label>{{ __('platform.site_name') }}<input name="site_name" value="{{ old('site_name', $settings['site_name'] ?? config('app.name')) }}" required maxlength="100"></label><label>{{ __('platform.default_plan') }}<select name="default_plan">@foreach($plans as $plan)<option value="{{ $plan->code }}" @selected(old('default_plan', $settings['default_plan'] ?? 'free')===$plan->code)>{{ $plan->name }}</option>@endforeach</select></label><label>{{ __('platform.signup_credits') }}<input name="default_signup_credits" type="number" min="0" max="1000000" value="{{ old('default_signup_credits', $settings['default_signup_credits'] ?? 10) }}"></label></div>
+        <label>{{ __('platform.maintenance_notice') }}<textarea name="maintenance_notice" maxlength="1000">{{ old('maintenance_notice', $settings['maintenance_notice'] ?? '') }}</textarea></label>
+        <label>{{ __('platform.support_content') }}<textarea name="support_content" maxlength="2000">{{ old('support_content', $settings['support_content'] ?? '') }}</textarea></label>
+        <label class="admin-switch"><input type="checkbox" name="registration_enabled" value="1" @checked(old('registration_enabled', $settings['registration_enabled'] ?? '1')==='1')><span></span>{{ __('platform.registration_enabled') }}</label>
+    </section>
+
+    <section class="admin-panel admin-form">
+        <div class="admin-section-heading"><div><p class="eyebrow">{{ __('platform.anti_bot') }}</p><h2>Google reCAPTCHA</h2></div><span class="status-badge {{ $recaptchaConfigured ? 'safe' : 'warning' }}">{{ $recaptchaConfigured ? __('platform.configured') : __('platform.missing_configuration') }}</span></div>
+        <div class="admin-config-notice {{ $recaptchaConfigured ? 'ready' : 'missing' }}">{{ $recaptchaConfigured ? __('platform.recaptcha_configured') : __('platform.recaptcha_not_configured') }}</div>
+        <div class="form-section-grid"><label>{{ __('platform.recaptcha_type') }}<select name="recaptcha_type"><option value="checkbox" @selected(old('recaptcha_type', $settings['recaptcha_type'] ?? config('recaptcha.type'))==='checkbox')>v2 Checkbox</option><option value="score" @selected(old('recaptcha_type', $settings['recaptcha_type'] ?? config('recaptcha.type'))==='score')>v3 Score</option></select></label><label>{{ __('platform.minimum_score') }}<input type="number" step="0.1" min="0.1" max="1" name="recaptcha_min_score" value="{{ old('recaptcha_min_score', $settings['recaptcha_min_score'] ?? '0.5') }}"></label><label>{{ __('platform.login_failure_threshold') }}<input type="number" min="1" max="10" name="recaptcha_login_failure_threshold" value="{{ old('recaptcha_login_failure_threshold', $settings['recaptcha_login_failure_threshold'] ?? 2) }}"></label></div>
+        <div class="switch-grid"><label class="admin-switch"><input type="checkbox" name="recaptcha_enabled" value="1" @checked(old('recaptcha_enabled', $settings['recaptcha_enabled'] ?? '0')==='1')><span></span>{{ __('platform.enabled') }}</label><label class="admin-switch"><input type="checkbox" name="recaptcha_login_enabled" value="1" @checked(old('recaptcha_login_enabled', $settings['recaptcha_login_enabled'] ?? '1')==='1')><span></span>{{ __('platform.login_protection') }}</label><label class="admin-switch"><input type="checkbox" name="recaptcha_login_always_visible" value="1" @checked(old('recaptcha_login_always_visible', $settings['recaptcha_login_always_visible'] ?? (config('recaptcha.login_always_visible') ? '1' : '0'))==='1')><span></span>{{ __('platform.always_visible') }}</label><label class="admin-switch"><input type="checkbox" name="recaptcha_register_enabled" value="1" @checked(old('recaptcha_register_enabled', $settings['recaptcha_register_enabled'] ?? '1')==='1')><span></span>{{ __('platform.register_protection') }}</label><label class="admin-switch"><input type="checkbox" name="recaptcha_password_reset_enabled" value="1" @checked(old('recaptcha_password_reset_enabled', $settings['recaptcha_password_reset_enabled'] ?? '1')==='1')><span></span>{{ __('platform.password_reset_protection') }}</label></div>
+        <p class="form-hint">{{ __('platform.secret_env_only') }}</p>
+    </section>
+    <div class="admin-settings-actions"><button><x-icon name="settings" /> {{ __('platform.save_settings') }}</button></div>
 </form>
 @endsection
