@@ -43,6 +43,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Build frontend
+        run: npm run build
+
       - name: Prepare application
         run: |
           cp .env.testing.example .env.testing
@@ -55,6 +58,3 @@ jobs:
 
       - name: Run tests
         run: php artisan test
-
-      - name: Build frontend
-        run: npm run build
